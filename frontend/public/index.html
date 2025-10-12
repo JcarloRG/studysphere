@@ -1,49 +1,36 @@
 <!DOCTYPE html>
-<html>
-<head>
-    <title>StudySphere - Inicio</title>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="StudySphere - Conecta con colaboradores para proyectos innovadores"
+    />
+    <title>StudySphere</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 50px;
-            background: linear-gradient(135deg, #9981f2 0%, #764ba2 100%);
-            color: rgb(255, 255, 255);
-        }
-        .option-card {
-            background: rgba(255, 255, 255, 0.909);
-            color: #333;
-            padding: 30px;
-            margin: 20px auto;
-            border-radius: 10px;
-            max-width: 400px;
-            text-decoration: none;
-            display: block;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            transition: transform 0.3s;
-        }
-        .option-card:hover {
-            transform: translateY(-5px);
-        }
+      /* Loading styles */
+      .loading-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: linear-gradient(135deg, #9981f2 0%, #764ba2 100%);
+        color: white;
+        font-family: Arial, sans-serif;
+      }
     </style>
-</head>
-<body>
-    <h1>StudySphere</h1>
-    <p>Conecta con colaboradores para compartir nuuevas ideas y crear proyectos innovadores</p>
+  </head>
+  <body>
+    <noscript>Necesitas habilitar JavaScript para ejecutar esta aplicación.</noscript>
     
-    <a href="estudiante.html" class="option-card">
-        <h3>👨‍🎓 Soy Estudiante</h3>
-        <p>Busco equipo para proyectos escolares innovadores y participar en diferentes concursos</p>
-    </a>
-    
-    <a href="docente.html" class="option-card">
-        <h3>👨‍🏫 Soy Docente</h3>
-        <p>Busco estudiantes para colaborar en investigaciones y proyectos innovadores</p>
-    </a>
-    
-    <a href="profesionista.html" class="option-card">
-        <h3>💼 Soy Profesionista</h3>
-        <p>Ofrezco mentoría y colaboración para proyectos innovadores</p>
-    </a>
-</body>
+    <!-- Este div es donde React montará la aplicación -->
+    <div id="root">
+      <div class="loading-container">
+        <h1>Cargando StudySphere...</h1>
+      </div>
+    </div>
+  </body>
 </html>
