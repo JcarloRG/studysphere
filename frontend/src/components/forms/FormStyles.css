@@ -1,6 +1,6 @@
 .form-container {
     min-height: 100vh;
-    background: linear-gradient(135deg, #9981f2 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #6f5cb3 0%, #61649a 0%);
     padding: 20px;
     display: flex;
     justify-content: center;
@@ -9,14 +9,14 @@
 }
 
 .form-card {
-    background: rgba(255, 255, 255, 0.95);
+    background: rgb(255, 255, 255);
     border-radius: 20px;
     padding: 40px;
     max-width: 700px;
     width: 100%;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(69, 67, 67, 0.2);
 }
 
 .form-header {
@@ -32,7 +32,7 @@
 }
 
 .form-description {
-    color: #666;
+    color: #414040;
     font-size: 1.1rem;
     line-height: 1.5;
     margin: 0;
@@ -117,7 +117,7 @@
 
 .submit-btn {
     background: linear-gradient(135deg, #9981f2 0%, #764ba2 100%);
-    color: white;
+    color: rgb(6, 6, 6);
     border: none;
     padding: 18px 30px;
     border-radius: 10px;
@@ -162,27 +162,46 @@
 }
 
 .back-btn {
-    background: transparent;
-    color: #666;
-    border: 2px solid #e1e8ed;
-    padding: 18px 25px;
-    border-radius: 10px;
-    font-size: 16px;
-    font-weight: 600;
+    all: unset; /* ← Esto reinicia TODOS los estilos */
+    
+    /* Ahora aplica los nuevos estilos */
+    background: linear-gradient(135deg, #9981f2 0%, #764ba2 100%) !important;
+    color: rgb(10, 10, 10) !important;
+    border: none !important;
+    padding: 18px 30px !important;
+    border-radius: 10px !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
     cursor: pointer;
-    transition: all 0.3s ease;
-    min-width: 140px;
+    transition: all 0.3s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px;
+    text-decoration: none !important;
 }
 
 .back-btn:hover:not(:disabled) {
-    background: #f8f9fa;
-    border-color: #9981f2;
-    color: #9981f2;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(152, 129, 242, 0.4);
 }
 
-.back-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+.back-btn.loading {
+    background: linear-gradient(135deg, #b8a8f0 0%, #8f6bc2 100%);
+}
+
+.spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid transparent;
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 .message {

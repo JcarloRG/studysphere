@@ -23,65 +23,51 @@ const EgresadoForm = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [messageType, setMessageType] = useState('');
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setMessage('');
-        setMessageType('');
+   const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setMessage('');
+    setMessageType('');
 
-        // Validación básica
-        if (!formData.nombre_completo || !formData.correo_institucional || !formData.carrera_egreso || !formData.anio_egreso) {
-            setMessage('❌ Por favor completa todos los campos obligatorios');
-            setMessageType('error');
-            setIsLoading(false);
-            return;
-        }
+    // Validación básica
+    if (!formData.nombre_completo || !formData.correo_institucional || !formData.carrera_egreso || !formData.anio_egreso) {
+        setMessage('❌ Por favor completa todos los campos obligatorios');
+        setMessageType('error');
+        setIsLoading(false);
+        return;
+    }
 
-        // Validar año de egreso
-        const anioActual = new Date().getFullYear();
-        const anioEgreso = parseInt(formData.anio_egreso);
-        if (anioEgreso < 1900 || anioEgreso > anioActual) {
-            setMessage(`❌ El año de egreso debe estar entre 1900 y ${anioActual}`);
-            setMessageType('error');
-            setIsLoading(false);
-            return;
-        }
+    // Validar año de egreso
+    const anioActual = new Date().getFullYear();
+    const anioEgreso = parseInt(formData.anio_egreso);
+    if (anioEgreso < 1900 || anioEgreso > anioActual) {
+        setMessage(`❌ El año de egreso debe estar entre 1900 y ${anioActual}`);
+        setMessageType('error');
+        setIsLoading(false);
+        return;
+    }
 
-        try {
-            console.log('🔄 Enviando datos de egresado...', formData);
-            
-            const result = await apiService.createEgresado(formData);
-            
-            setMessage('✅ ¡Egresado registrado exitosamente!');
-            setMessageType('success');
-            
-            // Limpiar formulario después de 2 segundos
-            setTimeout(() => {
-                setFormData({
-                    nombre_completo: '',
-                    correo_institucional: '',
-                    carrera_egreso: '',
-                    anio_egreso: '',
-                    ocupacion_actual: '',
-                    perfil_linkedin: '',
-                    empresa: '',
-                    puesto: '',
-                    logros: '',
-                    habilidades: '',
-                    competencias: ''
-                });
-                
-                navigate('/');
-            }, 2000);
+    try {
+        console.log('🔄 Enviando datos de egresado...', formData);
+        
+        const result = await apiService.createEgresado(formData);
+        
+        setMessage('✅ ¡Egresado registrado exitosamente!');
+        setMessageType('success');
+        
+        // ✅ REDIRIGIR AL PERFIL después de 2 segundos
+        setTimeout(() => {
+            navigate(`/perfil/egresado/${result.data.id}`);
+        }, 2000);
 
-        } catch (error) {
-            console.error('❌ Error completo:', error);
-            setMessage(`❌ Error al registrar egresado: ${error.message}`);
-            setMessageType('error');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    } catch (error) {
+        console.error('❌ Error completo:', error);
+        setMessage(`❌ Error al registrar egresado: ${error.message}`);
+        setMessageType('error');
+    } finally {
+        setIsLoading(false);
+    }
+ };
 
     const handleChange = (e) => {
         const { name, value } = e.target;

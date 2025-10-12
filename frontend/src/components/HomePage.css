@@ -1,6 +1,6 @@
 .home-container {
     min-height: 100vh;
-    background: linear-gradient(135deg, #9981f2 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #9981f2 0%, #967ca7 100%); /* ← AQUÍ CAMBIAS ESTO */
     padding: 20px;
     display: flex;
     justify-content: center;
@@ -10,7 +10,7 @@
 .home-content {
     text-align: center;
     color: white;
-    max-width: 800px;
+    max-width: 900px;
 }
 
 .home-content h1 {
@@ -26,15 +26,33 @@
     line-height: 1.6;
 }
 
+/* Secciones */
+.section {
+    margin-bottom: 50px;
+}
+
+.section h2 {
+    font-size: 2.2rem;
+    margin-bottom: 15px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.section-description {
+    font-size: 1.2rem;
+    margin-bottom: 30px;
+    opacity: 0.9;
+    line-height: 1.6;
+}
+
+/* RECTANGULARES - Para estudiante, docente, egresado */
 .options-grid {
     display: flex;
     flex-direction: column;
     gap: 25px;
     align-items: center;
-    margin-bottom: 40px;
 }
 
-.option-card {
+.option-card.rectangular {
     background: rgba(255, 255, 255, 0.95);
     color: #333;
     padding: 30px;
@@ -49,16 +67,56 @@
     text-align: center;
 }
 
-.option-card:hover {
+.option-card.rectangular:hover {
     transform: translateY(-8px);
     box-shadow: 0 15px 35px rgba(0,0,0,0.3);
     background: rgba(255, 255, 255, 1);
 }
 
-.card-content h3 {
-    margin: 0 0 15px 0;
-    font-size: 1.5rem;
+/* CUADRADOS - Para comunidad */
+.community-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    justify-content: center;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.community-card.square {
+    background: rgba(255, 255, 255, 0.95);
     color: #333;
+    padding: 25px 20px;
+    border-radius: 15px;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+    border: none;
+    text-align: center;
+    min-height: 200px;
+    aspect-ratio: 1;
+}
+
+.community-card.square:hover {
+    transform: translateY(-8px) scale(1.05);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+    background: rgba(255, 255, 255, 1);
+}
+
+/* Contenido de las cards */
+.card-content h3 {
+    margin: 0 0 12px 0;
+    font-size: 1.3rem;
+    color: #333;
+}
+
+.rectangular .card-content h3 {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
 }
 
 .card-content p {
@@ -67,6 +125,20 @@
     line-height: 1.5;
 }
 
+.rectangular .card-content p {
+    font-size: 1rem;
+}
+
+.square .card-content p {
+    font-size: 0.9rem;
+}
+
+.card-icon {
+    font-size: 2.5rem;
+    margin-bottom: 15px;
+}
+
+/* Sección de Registros Existentes */
 .view-records {
     margin-top: 40px;
     padding: 25px;
@@ -115,6 +187,21 @@
         font-size: 1.1rem;
     }
     
+    .section h2 {
+        font-size: 1.8rem;
+    }
+    
+    .community-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        max-width: 400px;
+    }
+    
+    .community-card.square {
+        min-height: 180px;
+        padding: 20px 15px;
+    }
+    
     .record-links {
         flex-direction: column;
         align-items: center;
@@ -122,5 +209,32 @@
     
     .btn-outline {
         width: 200px;
+    }
+}
+
+@media (max-width: 480px) {
+    .home-container {
+        padding: 15px;
+    }
+    
+    .home-content h1 {
+        font-size: 2.2rem;
+    }
+    
+    .section h2 {
+        font-size: 1.6rem;
+    }
+    
+    .community-grid {
+        grid-template-columns: 1fr;
+        max-width: 250px;
+    }
+    
+    .option-card.rectangular {
+        padding: 25px 20px;
+    }
+    
+    .card-content h3 {
+        font-size: 1.2rem;
     }
 }

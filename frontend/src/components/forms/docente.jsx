@@ -19,51 +19,41 @@ const DocenteForm = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [messageType, setMessageType] = useState('');
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setMessage('');
-        setMessageType('');
+   const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setMessage('');
+    setMessageType('');
 
-        // Validación básica
-        if (!formData.nombre_completo || !formData.correo_institucional || !formData.carrera_egreso) {
-            setMessage('❌ Por favor completa todos los campos obligatorios');
-            setMessageType('error');
-            setIsLoading(false);
-            return;
-        }
+    // Validación básica
+    if (!formData.nombre_completo || !formData.correo_institucional || !formData.carrera_egreso) {
+        setMessage('❌ Por favor completa todos los campos obligatorios');
+        setMessageType('error');
+        setIsLoading(false);
+        return;
+    }
 
-        try {
-            console.log('🔄 Enviando datos de docente...', formData);
-            
-            const result = await apiService.createDocente(formData);
-            
-            setMessage('✅ ¡Docente registrado exitosamente!');
-            setMessageType('success');
-            
-            // Limpiar formulario después de 2 segundos
-            setTimeout(() => {
-                setFormData({
-                    nombre_completo: '',
-                    correo_institucional: '',
-                    carrera_egreso: '',
-                    carreras_imparte: '',
-                    grado_academico: '',
-                    habilidades: '',
-                    logros: ''
-                });
-                
-                navigate('/');
-            }, 2000);
+    try {
+        console.log('🔄 Enviando datos de docente...', formData);
+        
+        const result = await apiService.createDocente(formData);
+        
+        setMessage('✅ ¡Docente registrado exitosamente!');
+        setMessageType('success');
+        
+        // ✅ REDIRIGIR AL PERFIL después de 2 segundos
+        setTimeout(() => {
+            navigate(`/perfil/docente/${result.data.id}`);
+        }, 2000);
 
-        } catch (error) {
-            console.error('❌ Error completo:', error);
-            setMessage(`❌ Error al registrar docente: ${error.message}`);
-            setMessageType('error');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    } catch (error) {
+        console.error('❌ Error completo:', error);
+        setMessage(`❌ Error al registrar docente: ${error.message}`);
+        setMessageType('error');
+    } finally {
+        setIsLoading(false);
+    }
+ };
 
     const handleChange = (e) => {
         const { name, value } = e.target;

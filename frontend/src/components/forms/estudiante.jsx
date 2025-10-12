@@ -21,51 +21,32 @@ const EstudianteForm = () => {
     const [messageType, setMessageType] = useState('');
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setMessage('');
-        setMessageType('');
+    e.preventDefault();
+    setIsLoading(true);
+    setMessage('');
+    setMessageType('');
 
-        // Validación básica
-        if (!formData.nombre_completo || !formData.correo_institucional || !formData.numero_control || !formData.carrera_actual) {
-            setMessage('❌ Por favor completa todos los campos obligatorios');
-            setMessageType('error');
-            setIsLoading(false);
-            return;
-        }
+    try {
+        console.log('🔄 Enviando datos de estudiante...', formData);
+        
+        const result = await apiService.createEstudiante(formData);
+        
+        setMessage('✅ ¡Estudiante registrado exitosamente!');
+        setMessageType('success');
+        
+        // ✅ REDIRIGIR AL PERFIL después de 2 segundos
+        setTimeout(() => {
+            navigate(`/perfil/estudiante/${result.data.id}`);
+        }, 2000);
 
-        try {
-            console.log('🔄 Enviando datos de estudiante...', formData);
-            
-            const result = await apiService.createEstudiante(formData);
-            
-            setMessage('✅ ¡Estudiante registrado exitosamente!');
-            setMessageType('success');
-            
-            // Limpiar formulario después de 2 segundos
-            setTimeout(() => {
-                setFormData({
-                    nombre_completo: '',
-                    correo_institucional: '',
-                    numero_control: '',
-                    carrera_actual: '',
-                    otra_carrera: 'No',
-                    semestre: '',
-                    habilidades: '',
-                    area_interes: ''
-                });
-                
-                navigate('/');
-            }, 2000);
-
-        } catch (error) {
-            console.error('❌ Error completo:', error);
-            setMessage(`❌ Error al registrar estudiante: ${error.message}`);
-            setMessageType('error');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    } catch (error) {
+        console.error('❌ Error completo:', error);
+        setMessage(`❌ Error al registrar estudiante: ${error.message}`);
+        setMessageType('error');
+    } finally {
+        setIsLoading(false);
+    }
+  };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -266,6 +247,7 @@ const EstudianteForm = () => {
             </div>
         </div>
     );
+    
 };
 
 export default EstudianteForm;
