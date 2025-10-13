@@ -1,10 +1,25 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './HomePage.css';
 
 const HomePage = () => {
+    const navigate = useNavigate();
+
+    const handleMiPerfil = () => {
+        navigate('/seleccionar-perfil');
+    };
+
     return (
         <div className="home-container">
+            {/* Botón de perfil independiente en esquina superior derecha */}
+            <button 
+                className="mi-perfil-btn"
+                onClick={handleMiPerfil}
+            >
+                👤 Mi Perfil
+            </button>
+
+            {/* Contenido principal */}
             <div className="home-content">
                 <h1>StudySphere</h1>
                 <p className="home-description">
