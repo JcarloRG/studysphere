@@ -57,6 +57,8 @@ Thumbs.db
 backend/db.sqlite3
 backend/staticfiles/
 backend/media/
+backend/venv/
+
 
 # === FRONTEND SPECIFIC ===
 frontend/node_modules/
