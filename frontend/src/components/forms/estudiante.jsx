@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../services/api';
-import './FormStyles.css';
+import './FormStyles.css'; // ← Asegúrate de usar el nuevo archivo CSS
 
 const EstudianteForm = () => {
     const navigate = useNavigate();
@@ -21,32 +21,32 @@ const EstudianteForm = () => {
     const [messageType, setMessageType] = useState('');
 
     const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setMessage('');
-    setMessageType('');
+        e.preventDefault();
+        setIsLoading(true);
+        setMessage('');
+        setMessageType('');
 
-    try {
-        console.log('🔄 Enviando datos de estudiante...', formData);
-        
-        const result = await apiService.createEstudiante(formData);
-        
-        setMessage('✅ ¡Estudiante registrado exitosamente!');
-        setMessageType('success');
-        
-        // ✅ REDIRIGIR AL PERFIL después de 2 segundos
-        setTimeout(() => {
-            navigate(`/perfil/estudiante/${result.data.id}`);
-        }, 2000);
+        try {
+            console.log('🔄 Enviando datos de estudiante...', formData);
+            
+            const result = await apiService.createEstudiante(formData);
+            
+            setMessage('✅ ¡Estudiante registrado exitosamente!');
+            setMessageType('success');
+            
+            // ✅ REDIRIGIR AL PERFIL después de 2 segundos
+            setTimeout(() => {
+                navigate(`/perfil/estudiante/${result.data.id}`);
+            }, 2000);
 
-    } catch (error) {
-        console.error('❌ Error completo:', error);
-        setMessage(`❌ Error al registrar estudiante: ${error.message}`);
-        setMessageType('error');
-    } finally {
-        setIsLoading(false);
-    }
-  };
+        } catch (error) {
+            console.error('❌ Error completo:', error);
+            setMessage(`❌ Error al registrar estudiante: ${error.message}`);
+            setMessageType('error');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -247,7 +247,6 @@ const EstudianteForm = () => {
             </div>
         </div>
     );
-    
 };
 
 export default EstudianteForm;

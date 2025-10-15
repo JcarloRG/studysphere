@@ -6,6 +6,8 @@ import EgresadoForm from './components/forms/profesionista.jsx';
 import HomePage from './components/HomePage.jsx';
 import AdminPanel from './components/AdminPanel';
 import Perfil from './components/Perfil';
+import Comunidad from './components/Comunidad';
+
 import './App.css';
 
 function App() {
@@ -14,6 +16,7 @@ function App() {
       <div className="App">
         <Routes>
           <Route path="/" element={<HomePage />} />
+           <Route path="/comunidad" element={<Comunidad />} />
           <Route path="/estudiante" element={<EstudianteForm />} />
           <Route path="/docente" element={<DocenteForm />} />
           <Route path="/egresado" element={<EgresadoForm />} />

@@ -466,6 +466,135 @@ export const apiService = {
         }
     },
 
+    // ========== NUEVAS FUNCIONES PARA BUSCAR POR CORREO ==========
+    async buscarPerfilPorCorreo(correo) {
+        try {
+            console.log(`🔍 Buscando perfil por correo: ${correo}`);
+            
+            // Buscar en estudiantes
+            try {
+                const estudiantes = await this.getEstudiantes();
+                if (estudiantes.success && estudiantes.data) {
+                    const estudiante = estudiantes.data.find(e => 
+                        e.correo_institucional && e.correo_institucional.toLowerCase() === correo.toLowerCase()
+                    );
+                    if (estudiante) {
+                        console.log('✅ Perfil encontrado: Estudiante', estudiante);
+                        return {
+                            success: true,
+                            data: estudiante,
+                            tipo: 'estudiante',
+                            id: estudiante.id
+                        };
+                    }
+                }
+            } catch (error) {
+                console.log('❌ Error buscando en estudiantes:', error.message);
+            }
+
+            // Buscar en docentes
+            try {
+                const docentes = await this.getDocentes();
+                if (docentes.success && docentes.data) {
+                    const docente = docentes.data.find(d => 
+                        d.correo_institucional && d.correo_institucional.toLowerCase() === correo.toLowerCase()
+                    );
+                    if (docente) {
+                        console.log('✅ Perfil encontrado: Docente', docente);
+                        return {
+                            success: true,
+                            data: docente,
+                            tipo: 'docente',
+                            id: docente.id
+                        };
+                    }
+                }
+            } catch (error) {
+                console.log('❌ Error buscando en docentes:', error.message);
+            }
+
+            // Buscar en egresados
+            try {
+                const egresados = await this.getEgresados();
+                if (egresados.success && egresados.data) {
+                    const egresado = egresados.data.find(eg => 
+                        eg.correo_institucional && eg.correo_institucional.toLowerCase() === correo.toLowerCase()
+                    );
+                    if (egresado) {
+                        console.log('✅ Perfil encontrado: Egresado', egresado);
+                        return {
+                            success: true,
+                            data: egresado,
+                            tipo: 'egresado',
+                            id: egresado.id
+                        };
+                    }
+                }
+            } catch (error) {
+                console.log('❌ Error buscando en egresados:', error.message);
+            }
+
+            console.log('❌ No se encontró ningún perfil con el correo:', correo);
+            return {
+                success: false,
+                message: 'No se encontró ningún perfil registrado con este correo electrónico'
+            };
+
+        } catch (error) {
+            console.error('💥 ERROR en buscarPerfilPorCorreo:', error);
+            return {
+                success: false,
+                message: 'Error al buscar el perfil: ' + error.message
+            };
+        }
+    },
+
+    // Función alternativa más específica por tipo
+    async buscarPorCorreoYTipo(correo, tipo) {
+        try {
+            console.log(`🔍 Buscando ${tipo} por correo: ${correo}`);
+            
+            let resultado;
+            switch (tipo) {
+                case 'estudiante':
+                    resultado = await this.getEstudiantes();
+                    break;
+                case 'docente':
+                    resultado = await this.getDocentes();
+                    break;
+                case 'egresado':
+                    resultado = await this.getEgresados();
+                    break;
+                default:
+                    throw new Error('Tipo de perfil no válido');
+            }
+
+            if (resultado.success && resultado.data) {
+                const perfil = resultado.data.find(p => 
+                    p.correo_institucional && p.correo_institucional.toLowerCase() === correo.toLowerCase()
+                );
+                
+                if (perfil) {
+                    return {
+                        success: true,
+                        data: perfil,
+                        tipo: tipo,
+                        id: perfil.id
+                    };
+                }
+            }
+
+            return {
+                success: false,
+                message: `No se encontró ningún ${tipo} con este correo`
+            };
+
+        } catch (error) {
+            console.error(`Error buscando ${tipo} por correo:`, error);
+            throw error;
+        }
+    },
+
     // ========== FUNCIÓN DE ESTADO DEL SERVIDOR ==========
     async checkServerStatus() {
         try {
@@ -485,7 +614,27 @@ export const apiService = {
                 message: 'No se puede conectar al servidor'
             };
         }
+    },
+
+    // ========== FUNCIÓN PARA VERIFICAR CORREO EXISTENTE ==========
+    async verificarCorreoExistente(correo) {
+        try {
+            console.log(`🔍 Verificando si el correo existe: ${correo}`);
+            const resultado = await this.buscarPerfilPorCorreo(correo);
+            
+            return {
+                success: true,
+                existe: resultado.success,
+                tipo: resultado.tipo,
+                data: resultado.data
+            };
+        } catch (error) {
+            console.error('Error verificando correo:', error);
+            return {
+                success: false,
+                existe: false,
+                message: error.message
+            };
+        }
     }
 };
-
-
