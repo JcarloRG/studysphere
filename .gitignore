@@ -1,65 +1,73 @@
-# === PYTHON / DJANGO ===
+#BACKEND (DJANGO / PYTHON)
+
+
+# Entorno virtual
 venv/
+backend/venv/
+
+# Archivos compilados y temporales
 __pycache__/
 *.py[cod]
-*.sqlite3
-db.sqlite3
+*.pyc
+*.pyo
+*.pyd
 *.log
 *.pot
-*.pyc
 *.pid
-*.db
-.env
-*.mo
-
-# Entorno virtual
-venv/
-# Archivos temporales de Django
-__pycache__/
-*.pyc
-# Configuración local
-.env
-backend/.env
-# Archivos de base de datos o dumps
-*.sql
-
-# Entorno virtual
-venv/
-.env
 
 # Archivos de base de datos locales
 *.sqlite3
-__pycache__/
+db.sqlite3
+*.db
+*.sql
 
+# Configuración local / secretos
+.env
+backend/.env
 
-# Django migration cache
+# Archivos de migraciones compiladas
 */migrations/__pycache__/
+*/__pycache__/
 
-# === NODE / REACT ===
+# Archivos estáticos y multimedia generados
+backend/staticfiles/
+backend/media/
+
+# Archivos de traducción binarios
+*.mo
+
+
+#FRONTEND (REACT / NODE)
+
+
+# Dependencias
 node_modules/
+frontend/node_modules/
+
+# Builds / compilaciones
 build/
+frontend/build/
+
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Archivos de entorno locales
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# === SYSTEM FILES ===
+# SISTEMA / EDITORES
+
+# Archivos de sistema
 .DS_Store
 Thumbs.db
+
+# Configuración de IDEs
 .vscode/
 .idea/
+
+# Archivos temporales de edición
 *.swp
-
-# === BACKEND SPECIFIC ===
-backend/db.sqlite3
-backend/staticfiles/
-backend/media/
-backend/venv/
-
-
-# === FRONTEND SPECIFIC ===
-frontend/node_modules/
-frontend/build/
