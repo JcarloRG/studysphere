@@ -1,0 +1,63 @@
+# === PYTHON / DJANGO ===
+venv/
+__pycache__/
+*.py[cod]
+*.sqlite3
+db.sqlite3
+*.log
+*.pot
+*.pyc
+*.pid
+*.db
+.env
+*.mo
+
+# Entorno virtual
+venv/
+# Archivos temporales de Django
+__pycache__/
+*.pyc
+# Configuración local
+.env
+backend/.env
+# Archivos de base de datos o dumps
+*.sql
+
+# Entorno virtual
+venv/
+.env
+
+# Archivos de base de datos locales
+*.sqlite3
+__pycache__/
+
+
+# Django migration cache
+*/migrations/__pycache__/
+
+# === NODE / REACT ===
+node_modules/
+build/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# === SYSTEM FILES ===
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# === BACKEND SPECIFIC ===
+backend/db.sqlite3
+backend/staticfiles/
+backend/media/
+
+# === FRONTEND SPECIFIC ===
+frontend/node_modules/
+frontend/build/
