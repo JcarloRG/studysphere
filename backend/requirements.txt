@@ -1,7 +1,6 @@
-mysql
-Django
-django-cors-headers
-djangorestframework
-djangorestframework_simplejwt
-pymysql
-mysqlclient
+Django==4.2.16
+djangorestframework==3.16.1
+django-cors-headers==4.4.0
+djangorestframework_simplejwt==5.5.1
+PyMySQL==1.1.0
+python-dotenv==1.0.1
