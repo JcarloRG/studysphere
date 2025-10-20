@@ -61,12 +61,20 @@ const EstudianteForm = () => {
       console.log('🔄 Enviando datos de estudiante...', formData);
       const result = await apiService.createEstudiante(formData);
 
-      setMessage('✅ ¡Estudiante registrado exitosamente!');
+      // ✅ Mensaje informativo
+      setMessage('✅ ¡Estudiante registrado exitosamente! Revisa tu correo para el código.');
       setMessageType('success');
 
+      // ✅ Redirigir a pantalla de verificación
       setTimeout(() => {
-        navigate(`/perfil/estudiante/${result.data.id}`);
-      }, 2000);
+        navigate('/verificar-email', {
+          state: {
+            email: formData.correo_institucional,
+            tipo: 'estudiante',
+            id: result.data?.id,
+          },
+        });
+      }, 1000);
     } catch (error) {
       console.error('❌ Error completo:', error);
       setMessage(`❌ Error al registrar estudiante: ${error.message}`);
@@ -222,10 +230,9 @@ const EstudianteForm = () => {
               value={formData.habilidades}
               onChange={handleChange}
               rows="3"
-              placeholder="Ej: Programación en Python, Diseño UX, Trabajo en equipo, Liderazgo..."
+              placeholder="Ej: Python, UX, Trabajo en equipo..."
               disabled={isLoading}
             />
-            <small className="help-text">Separa tus habilidades con comas</small>
           </div>
 
           <div className="form-group">
@@ -236,18 +243,16 @@ const EstudianteForm = () => {
               value={formData.area_interes}
               onChange={handleChange}
               rows="3"
-              placeholder="Ej: IA, Web, Ciberseguridad, Robótica..."
+              placeholder="Ej: IA, Web, Ciberseguridad..."
               disabled={isLoading}
             />
-            <small className="help-text">Menciona las áreas que te interesan para proyectos</small>
           </div>
 
           <div className="form-actions">
             <button type="submit" className={`submit-btn ${isLoading ? 'loading' : ''}`} disabled={isLoading}>
               {isLoading ? (
                 <>
-                  <span className="spinner"></span>
-                  Registrando...
+                  <span className="spinner"></span> Registrando...
                 </>
               ) : (
                 '📚 Registrar Estudiante'

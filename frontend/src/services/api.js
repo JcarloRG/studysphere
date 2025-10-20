@@ -1,7 +1,7 @@
 // src/services/api.js
 
 // Puedes sobreescribir por .env => REACT_APP_API_URL=http://localhost:8000
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 /* ===================== Helpers robustos ===================== */
 
@@ -47,7 +47,6 @@ async function parseResponse(response) {
     try {
       return { data: JSON.parse(text), raw: text, contentType: ct };
     } catch {
-      // El servidor dijo JSON pero el cuerpo es inválido
       throw new Error('El servidor indicó JSON pero envió contenido inválido.');
     }
   }
@@ -56,21 +55,30 @@ async function parseResponse(response) {
   return { data: null, raw: text, contentType: ct };
 }
 
-// Único punto de entrada para todas las requests
-async function requestJSON(method, path, body) {
+/**
+ * Único punto de entrada para requests JSON
+ * @param {'GET'|'POST'|'PUT'|'DELETE'|'PATCH'} method
+ * @param {string} path
+ * @param {object?} body
+ * @param {number?} timeoutMs
+ */
+async function requestJSON(method, path, body, timeoutMs = 20000) {
   // Aseguramos barra final en endpoints tipo recurso (conviene para DRF)
-  // Solo la aplicamos cuando path parece un "endpoint base" (termina en letra)
   const mustSlash = /[a-zA-Z)]$/.test(path);
   const normalizedPath = mustSlash ? ensureTrailingSlash(path) : path;
   const url = joinURL(API_BASE_URL, normalizedPath);
 
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+
   const init = {
     method: method.toUpperCase(),
     headers: {
-      'Accept': 'application/json',
-      // 'Content-Type' solo cuando enviamos body JSON
+      Accept: 'application/json',
       ...(body ? { 'Content-Type': 'application/json' } : {}),
     },
+    credentials: 'omit', // no enviar cookies en dev
+    signal: controller.signal,
   };
 
   if (body) {
@@ -83,23 +91,28 @@ async function requestJSON(method, path, body) {
     response = await fetch(url, init);
     parsed = await parseResponse(response);
   } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error('La solicitud tardó demasiado y fue cancelada.');
+    }
     // Errores de red, caída del servidor, CORS, etc.
     if (err.name === 'TypeError' && String(err.message).includes('fetch')) {
       throw new Error('No se puede conectar al servidor. Verifica que Django esté ejecutándose en ' + API_BASE_URL);
     }
     throw err;
+  } finally {
+    clearTimeout(id);
   }
 
-  // Si no es ok, lanzamos error con mensaje del backend (si hay) o preview de HTML
   if (!response.ok) {
     const msg =
       parsed?.data?.message ||
       parsed?.data?.detail ||
-      `Error en la solicitud`;
+      // Si vino HTML del servidor (por ejemplo 500 con plantilla) damos una pista:
+      (parsed?.raw && parsed.raw.trim().startsWith('<') ? 'El servidor devolvió HTML (posible error 500). Revisa consola/servidor.' : 'Error en la solicitud');
     throw httpError(msg, { status: response.status, url, raw: parsed?.raw });
   }
 
-  // Normalizamos salida: si backend envía { data: ... } usamos eso; sino enviamos el payload directo
+  // Normalizamos salida
   const payload = parsed?.data;
   const normalizedData = payload?.data !== undefined ? payload.data : payload;
   const message = payload?.message || payload?.detail || undefined;
@@ -124,9 +137,6 @@ export const apiService = {
     if (!estudianteData?.nombre_completo || !estudianteData?.correo_institucional) {
       throw new Error('Nombre y correo son obligatorios');
     }
-    // Si usas contraseña, valida aquí también (front)
-    // if (!estudianteData.password || !estudianteData.password2) { ... }
-
     const res = await requestJSON('POST', '/api/estudiante/registrar/', estudianteData);
     console.log('📡 Respuesta createEstudiante:', res);
     return {
@@ -180,7 +190,6 @@ export const apiService = {
   async getEstudiantes() {
     console.log('🔍 Obteniendo lista de estudiantes...');
     const res = await requestJSON('GET', '/api/estudiantes/');
-    // Normalizamos: si backend no envía {data: [...]}, devolvemos payload tal cual
     const data = Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data);
     console.log('📡 Lista de estudiantes:', data);
     return { success: true, data, status: res.status };
@@ -271,7 +280,6 @@ export const apiService = {
   async buscarEstudiantes(query) {
     console.log(`🔍 Buscando estudiantes: ${query}`);
     const res = await requestJSON('GET', `/api/estudiantes/buscar/?q=${encodeURIComponent(query)}`);
-    // Si backend devuelve {results:[...]} o {data:[...]} o [...]
     const data = res.data?.results || res.data?.data || res.data || [];
     return { success: true, data, status: res.status };
   },
@@ -294,7 +302,6 @@ export const apiService = {
   async buscarPerfilPorCorreo(correo) {
     console.log(`🔍 Buscando perfil por correo: ${correo}`);
 
-    // Buscamos en las tres listas (si alguna falla, seguimos con las demás)
     try {
       const est = await this.getEstudiantes();
       const e = (est.data || []).find(x =>
@@ -345,7 +352,6 @@ export const apiService = {
   },
 
   /* ---------- Health ---------- */
-  // Usa un endpoint JSON en el backend: /api/health/
   async checkServerStatus() {
     console.log('🔍 Verificando estado del servidor...');
     try {
@@ -377,4 +383,30 @@ export const apiService = {
       };
     }
   },
+
+  /* ---------- EMAIL: generar / verificar / estado / reenviar ---------- */
+
+  // ⬇️ NUEVO: Reenviar código (mismo endpoint de generar, pero con propósito 'resend')
+  async emailReenviarCodigo(email, purpose = 'resend') {
+    const res = await requestJSON('POST', '/api/email/generar/', { email, purpose });
+    return { success: true, ...(res.data || {}), status: res.status, message: res.message || 'Código reenviado' };
+  },
+
+  // al final de apiService
+  async emailGenerarCodigo(email, purpose = 'signup', tipo = 'estudiante', perfil_id = null) {
+    const res = await requestJSON('POST', '/api/email/request_code/', { email, purpose, tipo, perfil_id });
+    return { success: true, ...(res.data || {}), status: res.status, message: res.message };
+  },
+
+  async emailVerificarCodigo({ email, code }) {
+    const res = await requestJSON('POST', '/api/email/verify_code/', { email, code });
+    return { success: true, ...(res.data || {}), status: res.status, message: res.message };
+  },
+
+  async emailEstado(email) {
+    // (opcional si no lo usas)
+    const res = await requestJSON('GET', `/api/email/estado/?email=${encodeURIComponent(email)}`);
+    return { success: true, ...(res.data || {}), status: res.status, message: res.message };
+  },
+
 };

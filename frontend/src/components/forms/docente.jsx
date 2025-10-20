@@ -41,7 +41,6 @@ const DocenteForm = () => {
       return;
     }
 
-    // Contraseñas
     if (formData.password.length < 8) {
       setMessage('❌ La contraseña debe tener al menos 8 caracteres');
       setMessageType('error');
@@ -59,12 +58,19 @@ const DocenteForm = () => {
       console.log('🔄 Enviando datos de docente...', formData);
       const result = await apiService.createDocente(formData);
 
-      setMessage('✅ ¡Docente registrado exitosamente!');
+      // ✅ Mensaje y redirección a verificación
+      setMessage('✅ ¡Docente registrado exitosamente! Revisa tu correo para el código.');
       setMessageType('success');
 
       setTimeout(() => {
-        navigate(`/perfil/docente/${result.data.id}`);
-      }, 2000);
+        navigate('/verificar-email', {
+          state: {
+            email: formData.correo_institucional,
+            tipo: 'docente',
+            id: result?.data?.id, // por si el backend devuelve { id }
+          },
+        });
+      }, 1000);
     } catch (error) {
       console.error('❌ Error completo:', error);
       setMessage(`❌ Error al registrar docente: ${error.message}`);

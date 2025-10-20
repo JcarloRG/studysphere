@@ -49,7 +49,7 @@ const EgresadoForm = () => {
     // Año de egreso
     const anioActual = new Date().getFullYear();
     const anioEgreso = parseInt(formData.anio_egreso, 10);
-    if (anioEgreso < 1900 || anioEgreso > anioActual) {
+    if (isNaN(anioEgreso) || anioEgreso < 1900 || anioEgreso > anioActual) {
       setMessage(`❌ El año de egreso debe estar entre 1900 y ${anioActual}.`);
       setMessageType('error');
       setIsLoading(false);
@@ -74,12 +74,19 @@ const EgresadoForm = () => {
       console.log('🔄 Enviando datos de egresado...', formData);
       const result = await apiService.createEgresado(formData);
 
-      setMessage('✅ ¡Egresado registrado exitosamente!');
+      // ✅ Mensaje + redirección a verificación
+      setMessage('✅ ¡Egresado registrado exitosamente! Revisa tu correo para el código.');
       setMessageType('success');
 
       setTimeout(() => {
-        navigate(`/perfil/egresado/${result.data.id}`);
-      }, 2000);
+        navigate('/verificar-email', {
+          state: {
+            email: formData.correo_institucional,
+            tipo: 'egresado',
+            id: result?.data?.id,
+          },
+        });
+      }, 1000);
     } catch (error) {
       console.error('❌ Error completo:', error);
       setMessage(`❌ Error al registrar egresado: ${error.message}`);
@@ -125,7 +132,7 @@ const EgresadoForm = () => {
 
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="correo_institucional" className="required">Correo Institucional</label>
+              <label htmlFor="correo_institucional" className="required">Correo</label>
               <input
                 type="email"
                 id="correo_institucional"
@@ -133,7 +140,7 @@ const EgresadoForm = () => {
                 value={formData.correo_institucional}
                 onChange={handleChange}
                 required
-                placeholder="Ej: carlos.rodriguez@institucion.edu"
+                placeholder="Ej: carlos.rodriguez@correo.com"
                 disabled={isLoading}
               />
             </div>
