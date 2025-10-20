@@ -8,6 +8,7 @@ import HomePage from './components/HomePage.jsx';
 import AdminPanel from './components/AdminPanel';
 import Perfil from './components/Perfil';
 import Comunidad from './components/Comunidad';
+import VerificationCode from './components/forms/VerificationCode.jsx';
 
 import VerificarEmail from './pages/VerifyEmail.jsx';
 
@@ -25,7 +26,8 @@ function App() {
           <Route path="/docente" element={<DocenteForm />} />
           <Route path="/egresado" element={<EgresadoForm />} />
 
-          <Route path="/verificar-email" element={<VerificarEmail />} />
+          
+          <Route path="/verificar-email" element={<VerificationCode />} />
 
           <Route path="/estudiante.html" element={<EstudianteForm />} />
           <Route path="/docente.html" element={<DocenteForm />} />

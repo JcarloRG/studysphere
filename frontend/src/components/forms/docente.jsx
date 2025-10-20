@@ -67,7 +67,7 @@ const DocenteForm = () => {
           state: {
             email: formData.correo_institucional,
             tipo: 'docente',
-            id: result?.data?.id, // por si el backend devuelve { id }
+            id: result?.data?.id,
           },
         });
       }, 1000);
@@ -88,173 +88,254 @@ const DocenteForm = () => {
   const handleBack = () => navigate('/');
 
   return (
-    <div className="form-container">
-      <div className="form-card">
-        <div className="form-header">
-          <h2>👨‍🏫 Registro de Docente</h2>
-          <p className="form-description">
-            Completa tus datos para compartir tu experiencia y conectar con estudiantes
-          </p>
+    <div className="home-container">
+      {/* Fondo idéntico al homepage */}
+      <div className="background-shapes">
+        <div className="shape shape-1"></div>
+        <div className="shape shape-2"></div>
+        <div className="shape shape-3"></div>
+        <div className="shape shape-4"></div>
+      </div>
+
+      {/* Header idéntico al homepage */}
+      <header className="premium-header">
+        <div className="header-content">
+          <div className="logo-section">
+            <div className="logo-icon">🚀</div>
+            <h1>StudySphere</h1>
+          </div>
+          <nav className="nav-actions">
+            <button 
+              className="nav-btn profile-nav-btn"
+              onClick={handleBack}
+              disabled={isLoading}
+            >
+              <span className="btn-icon">🏠</span>
+              <span>Volver al Inicio</span>
+            </button>
+          </nav>
         </div>
+      </header>
 
-        {message && <div className={`message ${messageType}`}>{message}</div>}
-
-        <form onSubmit={handleSubmit} className="docente-form">
-          <div className="form-group">
-            <label htmlFor="nombre_completo" className="required">Nombre Completo</label>
-            <input
-              type="text"
-              id="nombre_completo"
-              name="nombre_completo"
-              value={formData.nombre_completo}
-              onChange={handleChange}
-              required
-              placeholder="Ej: Dra. María González López"
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="correo_institucional" className="required">Correo Institucional</label>
-              <input
-                type="email"
-                id="correo_institucional"
-                name="correo_institucional"
-                value={formData.correo_institucional}
-                onChange={handleChange}
-                required
-                placeholder="Ej: maria.gonzalez@institucion.edu"
-                disabled={isLoading}
-              />
+      {/* Contenido del formulario */}
+      <div className="form-section">
+        <div className="form-container-custom">
+          <div className="form-card-custom">
+            <div className="form-header-custom">
+              <div className="header-with-emoji"></div>
+              <span className="form-emoji">📚</span>
+              <h2> Registro de Docente</h2>
+              <p className="form-description-custom">
+                Completa tus datos para compartir tu experiencia y conectar con estudiantes
+              </p>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="carrera_egreso" className="required">Carrera de Egreso</label>
-              <input
-                type="text"
-                id="carrera_egreso"
-                name="carrera_egreso"
-                value={formData.carrera_egreso}
-                onChange={handleChange}
-                required
-                placeholder="Ej: Ingeniería en Sistemas Computacionales"
-                disabled={isLoading}
-              />
+            {message && (
+              <div className={`message-custom ${messageType}`}>
+                {message}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="estudiante-form-custom">
+              <div className="form-group-custom">
+                <label htmlFor="nombre_completo" className="required-custom">
+                  Nombre Completo
+                </label>
+                <input
+                  type="text"
+                  id="nombre_completo"
+                  name="nombre_completo"
+                  value={formData.nombre_completo}
+                  onChange={handleChange}
+                  required
+                  placeholder="Ej: Dra. María González López"
+                  disabled={isLoading}
+                  className="form-input-custom"
+                />
+              </div>
+
+              <div className="form-row-custom">
+                <div className="form-group-custom">
+                  <label htmlFor="correo_institucional" className="required-custom">
+                    Correo Institucional
+                  </label>
+                  <input
+                    type="email"
+                    id="correo_institucional"
+                    name="correo_institucional"
+                    value={formData.correo_institucional}
+                    onChange={handleChange}
+                    required
+                    placeholder="Ej: maria.gonzalez@institucion.edu"
+                    disabled={isLoading}
+                    className="form-input-custom"
+                  />
+                </div>
+
+                <div className="form-group-custom">
+                  <label htmlFor="carrera_egreso" className="required-custom">
+                    Carrera de Egreso
+                  </label>
+                  <input
+                    type="text"
+                    id="carrera_egreso"
+                    name="carrera_egreso"
+                    value={formData.carrera_egreso}
+                    onChange={handleChange}
+                    required
+                    placeholder="Ej: Ingeniería en Sistemas Computacionales"
+                    disabled={isLoading}
+                    className="form-input-custom"
+                  />
+                </div>
+              </div>
+
+              {/* 🔐 Contraseñas */}
+              <div className="form-row-custom">
+                <div className="form-group-custom">
+                  <label htmlFor="password" className="required-custom">
+                    Contraseña
+                  </label>
+                  <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    placeholder="Mínimo 8 caracteres"
+                    disabled={isLoading}
+                    className="form-input-custom"
+                  />
+                </div>
+
+                <div className="form-group-custom">
+                  <label htmlFor="password2" className="required-custom">
+                    Confirmar Contraseña
+                  </label>
+                  <input
+                    type="password"
+                    id="password2"
+                    name="password2"
+                    value={formData.password2}
+                    onChange={handleChange}
+                    required
+                    placeholder="Repite la contraseña"
+                    disabled={isLoading}
+                    className="form-input-custom"
+                  />
+                </div>
+              </div>
+
+              <div className="form-row-custom">
+                <div className="form-group-custom">
+                  <label htmlFor="carreras_imparte" className="optional-custom">
+                    Carreras que Imparte
+                  </label>
+                  <input
+                    type="text"
+                    id="carreras_imparte"
+                    name="carreras_imparte"
+                    value={formData.carreras_imparte}
+                    onChange={handleChange}
+                    placeholder="Ej: Ingeniería Software, Sistemas Computacionales"
+                    disabled={isLoading}
+                    className="form-input-custom"
+                  />
+                </div>
+
+                <div className="form-group-custom">
+                  <label htmlFor="grado_academico" className="optional-custom">
+                    Grado Académico
+                  </label>
+                  <select
+                    id="grado_academico"
+                    name="grado_academico"
+                    value={formData.grado_academico}
+                    onChange={handleChange}
+                    disabled={isLoading}
+                    className="form-input-custom"
+                  >
+                    <option value="">Selecciona un grado</option>
+                    <option value="Licenciatura">Licenciatura</option>
+                    <option value="Maestría">Maestría</option>
+                    <option value="Doctorado">Doctorado</option>
+                    <option value="Especialización">Especialización</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group-custom">
+                <label htmlFor="habilidades" className="optional-custom">
+                  Habilidades y Especialidades
+                </label>
+                <textarea
+                  id="habilidades"
+                  name="habilidades"
+                  value={formData.habilidades}
+                  onChange={handleChange}
+                  rows="3"
+                  placeholder="Ej: Inteligencia Artificial, Base de Datos, Metodologías Ágiles, Investigación..."
+                  disabled={isLoading}
+                  className="form-input-custom"
+                />
+                <div className="help-text-custom">
+                  Áreas en las que tienes experiencia y especialización
+                </div>
+              </div>
+
+              <div className="form-group-custom">
+                <label htmlFor="logros" className="optional-custom">
+                  Logros Académicos y Profesionales
+                </label>
+                <textarea
+                  id="logros"
+                  name="logros"
+                  value={formData.logros}
+                  onChange={handleChange}
+                  rows="3"
+                  placeholder="Ej: Publicaciones, Proyectos de investigación, Reconocimientos, Certificaciones..."
+                  disabled={isLoading}
+                  className="form-input-custom"
+                />
+                <div className="help-text-custom">
+                  Logros destacados en tu carrera académica y profesional
+                </div>
+              </div>
+
+              <div className="form-actions-custom">
+                <button 
+                  type="submit" 
+                  className={`submit-btn-custom ${isLoading ? 'loading' : ''}`} 
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <span className="spinner-custom"></span>
+                      Registrando...
+                    </>
+                  ) : (
+                    '📚 Registrar Docente'
+                  )}
+                </button>
+
+                <button 
+                  type="button" 
+                  className="back-btn-custom" 
+                  onClick={handleBack} 
+                  disabled={isLoading}
+                >
+                  ← Volver al Inicio
+                </button>
+              </div>
+            </form>
+
+            <div className="form-footer-custom">
+              <p className="required-note-custom">
+                * Campos obligatorios
+              </p>
             </div>
           </div>
-
-          {/* 🔐 Contraseñas */}
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="password" className="required">Contraseña</label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                placeholder="Mínimo 8 caracteres"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="password2" className="required">Confirmar Contraseña</label>
-              <input
-                type="password"
-                id="password2"
-                name="password2"
-                value={formData.password2}
-                onChange={handleChange}
-                required
-                placeholder="Repite la contraseña"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="carreras_imparte">Carreras que Imparte</label>
-              <input
-                type="text"
-                id="carreras_imparte"
-                name="carreras_imparte"
-                value={formData.carreras_imparte}
-                onChange={handleChange}
-                placeholder="Ej: Ingeniería Software, Sistemas Computacionales"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="grado_academico">Grado Académico</label>
-              <select
-                id="grado_academico"
-                name="grado_academico"
-                value={formData.grado_academico}
-                onChange={handleChange}
-                disabled={isLoading}
-              >
-                <option value="">Selecciona un grado</option>
-                <option value="Licenciatura">Licenciatura</option>
-                <option value="Maestría">Maestría</option>
-                <option value="Doctorado">Doctorado</option>
-                <option value="Especialización">Especialización</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="habilidades">Habilidades y Especialidades</label>
-            <textarea
-              id="habilidades"
-              name="habilidades"
-              value={formData.habilidades}
-              onChange={handleChange}
-              rows="3"
-              placeholder="Ej: Inteligencia Artificial, Base de Datos, Metodologías Ágiles, Investigación..."
-              disabled={isLoading}
-            />
-            <small className="help-text">Áreas en las que tienes experiencia y especialización</small>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="logros">Logros Académicos y Profesionales</label>
-            <textarea
-              id="logros"
-              name="logros"
-              value={formData.logros}
-              onChange={handleChange}
-              rows="3"
-              placeholder="Ej: Publicaciones, Proyectos de investigación, Reconocimientos, Certificaciones..."
-              disabled={isLoading}
-            />
-            <small className="help-text">Logros destacados en tu carrera académica y profesional</small>
-          </div>
-
-          <div className="form-actions">
-            <button type="submit" className={`submit-btn ${isLoading ? 'loading' : ''}`} disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <span className="spinner"></span>
-                  Registrando...
-                </>
-              ) : (
-                '🎓 Registrar Docente'
-              )}
-            </button>
-
-            <button type="button" className="back-btn" onClick={handleBack} disabled={isLoading}>
-              ← Volver al Inicio
-            </button>
-          </div>
-        </form>
-
-        <div className="form-footer">
-          <p className="required-note">* Campos obligatorios</p>
         </div>
       </div>
     </div>

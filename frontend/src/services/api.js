@@ -409,4 +409,108 @@ export const apiService = {
     return { success: true, ...(res.data || {}), status: res.status, message: res.message };
   },
 
+  /* ========== NUEVAS FUNCIONES PARA VERIFICACIÓN DE CÓDIGO ========== */
+
+  /* ---------- Verificar código de verificación ---------- */
+  async verifyCode(email, code, userType) {
+    console.log(`🔐 Verificando código para: ${email}, tipo: ${userType}`);
+    
+    try {
+      const res = await requestJSON('POST', '/api/email/verify_code/', { 
+        email, 
+        code 
+      });
+      
+      console.log('📡 Respuesta verifyCode:', res);
+      
+      return {
+        success: true,
+        message: res.message || '¡Código verificado exitosamente!',
+        data: res.data,
+        status: res.status,
+      };
+    } catch (error) {
+      console.error('❌ Error en verifyCode:', error);
+      return {
+        success: false,
+        message: error.message || 'Error al verificar el código',
+        status: error.status,
+      };
+    }
+  },
+
+  /* ---------- Reenviar código de verificación ---------- */
+  async resendCode(email, userType) {
+    console.log(`🔄 Reenviando código para: ${email}, tipo: ${userType}`);
+    
+    try {
+      const res = await requestJSON('POST', '/api/email/request_code/', { 
+        email, 
+        purpose: 'resend',
+        tipo: userType 
+      });
+      
+      console.log('📡 Respuesta resendCode:', res);
+      
+      return {
+        success: true,
+        message: res.message || '¡Código reenviado exitosamente!',
+        data: res.data,
+        status: res.status,
+      };
+    } catch (error) {
+      console.error('❌ Error en resendCode:', error);
+      return {
+        success: false,
+        message: error.message || 'Error al reenviar el código',
+        status: error.status,
+      };
+    }
+  },
+
+  /* ---------- Validar login con email y contraseña ---------- */
+  async validarLogin(email, password) {
+    console.log(`🔐 Validando login para: ${email}`);
+    
+    try {
+      // Primero buscar el perfil por correo
+      const perfilResult = await this.buscarPerfilPorCorreo(email);
+      
+      if (!perfilResult.success) {
+        return {
+          success: false,
+          message: 'No se encontró ningún perfil con este correo'
+        };
+      }
+
+      // Aquí deberías integrar con tu backend de autenticación
+      // Por ahora simulamos una validación básica
+      const perfil = perfilResult.data;
+      
+      // En un sistema real, aquí harías una petición al backend para validar la contraseña
+      // Por ahora asumimos que la contraseña es válida si tiene al menos 6 caracteres
+      if (password && password.length >= 6) {
+        return {
+          success: true,
+          message: 'Login exitoso',
+          tipo: perfilResult.tipo,
+          id: perfilResult.id,
+          nombre: perfil.nombre_completo,
+          email: perfil.correo_institucional
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Contraseña incorrecta'
+        };
+      }
+    } catch (error) {
+      console.error('❌ Error en validarLogin:', error);
+      return {
+        success: false,
+        message: 'Error al validar credenciales'
+      };
+    }
+  }
+
 };

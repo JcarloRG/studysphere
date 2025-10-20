@@ -104,233 +104,314 @@ const EgresadoForm = () => {
   const handleBack = () => navigate('/');
 
   return (
-    <div className="form-container">
-      <div className="form-card">
-        <div className="form-header">
-          <h2>💼 Registro de Egresado</h2>
-          <p className="form-description">
-            Completa tus datos para compartir tu experiencia profesional y conectar con la comunidad
-          </p>
-        </div>
+    <div className="home-container">
+      {/* Fondo idéntico al homepage */}
+      <div className="background-shapes">
+        <div className="shape shape-1"></div>
+        <div className="shape shape-2"></div>
+        <div className="shape shape-3"></div>
+        <div className="shape shape-4"></div>
+      </div>
 
-        {message && <div className={`message ${messageType}`}>{message}</div>}
-
-        <form onSubmit={handleSubmit} className="egresado-form">
-          <div className="form-group">
-            <label htmlFor="nombre_completo" className="required">Nombre Completo</label>
-            <input
-              type="text"
-              id="nombre_completo"
-              name="nombre_completo"
-              value={formData.nombre_completo}
-              onChange={handleChange}
-              required
-              placeholder="Ej: Carlos Rodríguez Martínez"
-              disabled={isLoading}
-            />
+      {/* Header idéntico al homepage */}
+      <header className="premium-header">
+        <div className="header-content">
+          <div className="logo-section">
+            <div className="logo-icon">🚀</div>
+            <h1>StudySphere</h1>
           </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="correo_institucional" className="required">Correo</label>
-              <input
-                type="email"
-                id="correo_institucional"
-                name="correo_institucional"
-                value={formData.correo_institucional}
-                onChange={handleChange}
-                required
-                placeholder="Ej: carlos.rodriguez@correo.com"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="carrera_egreso" className="required">Carrera de Egreso</label>
-              <input
-                type="text"
-                id="carrera_egreso"
-                name="carrera_egreso"
-                value={formData.carrera_egreso}
-                onChange={handleChange}
-                required
-                placeholder="Ej: Ingeniería en Tecnologías de la Información"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          {/* 🔐 Contraseñas */}
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="password" className="required">Contraseña</label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                placeholder="Mínimo 8 caracteres"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="password2" className="required">Confirmar Contraseña</label>
-              <input
-                type="password"
-                id="password2"
-                name="password2"
-                value={formData.password2}
-                onChange={handleChange}
-                required
-                placeholder="Repite la contraseña"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="anio_egreso" className="required">Año de Egreso</label>
-              <input
-                type="number"
-                id="anio_egreso"
-                name="anio_egreso"
-                value={formData.anio_egreso}
-                onChange={handleChange}
-                required
-                min="1900"
-                max={new Date().getFullYear()}
-                placeholder="Ej: 2020"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="ocupacion_actual">Ocupación Actual</label>
-              <input
-                type="text"
-                id="ocupacion_actual"
-                name="ocupacion_actual"
-                value={formData.ocupacion_actual}
-                onChange={handleChange}
-                placeholder="Ej: Desarrollador Full Stack"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="empresa">Empresa</label>
-              <input
-                type="text"
-                id="empresa"
-                name="empresa"
-                value={formData.empresa}
-                onChange={handleChange}
-                placeholder="Ej: Google, Microsoft, Startup XYZ"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="puesto">Puesto</label>
-              <input
-                type="text"
-                id="puesto"
-                name="puesto"
-                value={formData.puesto}
-                onChange={handleChange}
-                placeholder="Ej: Senior Software Engineer"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="perfil_linkedin">Perfil de LinkedIn</label>
-            <input
-              type="url"
-              id="perfil_linkedin"
-              name="perfil_linkedin"
-              value={formData.perfil_linkedin}
-              onChange={handleChange}
-              placeholder="Ej: https://linkedin.com/in/tu-perfil"
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="habilidades">Habilidades Técnicas</label>
-            <textarea
-              id="habilidades"
-              name="habilidades"
-              value={formData.habilidades}
-              onChange={handleChange}
-              rows="2"
-              placeholder="Ej: JavaScript, Python, React, Node.js, AWS, Docker..."
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="competencias">Competencias Profesionales</label>
-            <textarea
-              id="competencias"
-              name="competencias"
-              value={formData.competencias}
-              onChange={handleChange}
-              rows="2"
-              placeholder="Ej: Liderazgo, Gestión de proyectos, Comunicación..."
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="logros">Logros Profesionales</label>
-            <textarea
-              id="logros"
-              name="logros"
-              value={formData.logros}
-              onChange={handleChange}
-              rows="3"
-              placeholder="Ej: Proyectos destacados, Certificaciones, Reconocimientos..."
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="form-actions">
-            <button
-              type="submit"
-              className={`submit-btn ${isLoading ? 'loading' : ''}`}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <span className="spinner"></span>
-                  Registrando...
-                </>
-              ) : (
-                '💼 Registrar Egresado'
-              )}
-            </button>
-
-            <button
-              type="button"
-              className="back-btn"
+          <nav className="nav-actions">
+            <button 
+              className="nav-btn profile-nav-btn"
               onClick={handleBack}
               disabled={isLoading}
             >
-              ← Volver al Inicio
+              <span className="btn-icon">🏠</span>
+              <span>Volver al Inicio</span>
             </button>
-          </div>
-        </form>
+          </nav>
+        </div>
+      </header>
 
-        <div className="form-footer">
-          <p className="required-note">* Campos obligatorios</p>
+      {/* Contenido del formulario */}
+      <div className="form-section">
+        <div className="form-container-custom">
+          <div className="form-card-custom">
+            <div className="form-header-custom">
+              <div className="header-with-emoji">
+                <span className="form-emoji">💡</span>
+              </div>
+              <h2>Registro de Egresado</h2>
+              <p className="form-description-custom">
+                Completa tus datos para compartir tu experiencia profesional y conectar con la comunidad
+              </p>
+            </div>
+
+            {message && (
+              <div className={`message-custom ${messageType}`}>
+                {message}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="estudiante-form-custom">
+              <div className="form-group-custom">
+                <label htmlFor="nombre_completo" className="required-custom">
+                  Nombre Completo
+                </label>
+                <input
+                  type="text"
+                  id="nombre_completo"
+                  name="nombre_completo"
+                  value={formData.nombre_completo}
+                  onChange={handleChange}
+                  required
+                  placeholder="Ej: Carlos Rodríguez Martínez"
+                  disabled={isLoading}
+                  className="form-input-custom"
+                />
+              </div>
+
+              <div className="form-row-custom">
+                <div className="form-group-custom">
+                  <label htmlFor="correo_institucional" className="required-custom">
+                    Correo
+                  </label>
+                  <input
+                    type="email"
+                    id="correo_institucional"
+                    name="correo_institucional"
+                    value={formData.correo_institucional}
+                    onChange={handleChange}
+                    required
+                    placeholder="Ej: carlos.rodriguez@correo.com"
+                    disabled={isLoading}
+                    className="form-input-custom"
+                  />
+                </div>
+
+                <div className="form-group-custom">
+                  <label htmlFor="carrera_egreso" className="required-custom">
+                    Carrera de Egreso
+                  </label>
+                  <input
+                    type="text"
+                    id="carrera_egreso"
+                    name="carrera_egreso"
+                    value={formData.carrera_egreso}
+                    onChange={handleChange}
+                    required
+                    placeholder="Ej: Ingeniería en Tecnologías de la Información"
+                    disabled={isLoading}
+                    className="form-input-custom"
+                  />
+                </div>
+              </div>
+
+              {/* 🔐 Contraseñas */}
+              <div className="form-row-custom">
+                <div className="form-group-custom">
+                  <label htmlFor="password" className="required-custom">
+                    Contraseña
+                  </label>
+                  <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    placeholder="Mínimo 8 caracteres"
+                    disabled={isLoading}
+                    className="form-input-custom"
+                  />
+                </div>
+
+                <div className="form-group-custom">
+                  <label htmlFor="password2" className="required-custom">
+                    Confirmar Contraseña
+                  </label>
+                  <input
+                    type="password"
+                    id="password2"
+                    name="password2"
+                    value={formData.password2}
+                    onChange={handleChange}
+                    required
+                    placeholder="Repite la contraseña"
+                    disabled={isLoading}
+                    className="form-input-custom"
+                  />
+                </div>
+              </div>
+
+              <div className="form-row-custom">
+                <div className="form-group-custom">
+                  <label htmlFor="anio_egreso" className="required-custom">
+                    Año de Egreso
+                  </label>
+                  <input
+                    type="number"
+                    id="anio_egreso"
+                    name="anio_egreso"
+                    value={formData.anio_egreso}
+                    onChange={handleChange}
+                    required
+                    min="1900"
+                    max={new Date().getFullYear()}
+                    placeholder="Ej: 2020"
+                    disabled={isLoading}
+                    className="form-input-custom"
+                  />
+                </div>
+
+                <div className="form-group-custom">
+                  <label htmlFor="ocupacion_actual" className="optional-custom">
+                    Ocupación Actual
+                  </label>
+                  <input
+                    type="text"
+                    id="ocupacion_actual"
+                    name="ocupacion_actual"
+                    value={formData.ocupacion_actual}
+                    onChange={handleChange}
+                    placeholder="Ej: Desarrollador Full Stack"
+                    disabled={isLoading}
+                    className="form-input-custom"
+                  />
+                </div>
+              </div>
+
+              <div className="form-row-custom">
+                <div className="form-group-custom">
+                  <label htmlFor="empresa" className="optional-custom">
+                    Empresa
+                  </label>
+                  <input
+                    type="text"
+                    id="empresa"
+                    name="empresa"
+                    value={formData.empresa}
+                    onChange={handleChange}
+                    placeholder="Ej: Google, Microsoft, Startup XYZ"
+                    disabled={isLoading}
+                    className="form-input-custom"
+                  />
+                </div>
+
+                <div className="form-group-custom">
+                  <label htmlFor="puesto" className="optional-custom">
+                    Puesto
+                  </label>
+                  <input
+                    type="text"
+                    id="puesto"
+                    name="puesto"
+                    value={formData.puesto}
+                    onChange={handleChange}
+                    placeholder="Ej: Senior Software Engineer"
+                    disabled={isLoading}
+                    className="form-input-custom"
+                  />
+                </div>
+              </div>
+
+              <div className="form-group-custom">
+                <label htmlFor="perfil_linkedin" className="optional-custom">
+                  Perfil de LinkedIn
+                </label>
+                <input
+                  type="url"
+                  id="perfil_linkedin"
+                  name="perfil_linkedin"
+                  value={formData.perfil_linkedin}
+                  onChange={handleChange}
+                  placeholder="Ej: https://linkedin.com/in/tu-perfil"
+                  disabled={isLoading}
+                  className="form-input-custom"
+                />
+              </div>
+
+              <div className="form-group-custom">
+                <label htmlFor="habilidades" className="optional-custom">
+                  Habilidades Técnicas
+                </label>
+                <textarea
+                  id="habilidades"
+                  name="habilidades"
+                  value={formData.habilidades}
+                  onChange={handleChange}
+                  rows="2"
+                  placeholder="Ej: JavaScript, Python, React, Node.js, AWS, Docker..."
+                  disabled={isLoading}
+                  className="form-input-custom"
+                />
+              </div>
+
+              <div className="form-group-custom">
+                <label htmlFor="competencias" className="optional-custom">
+                  Competencias Profesionales
+                </label>
+                <textarea
+                  id="competencias"
+                  name="competencias"
+                  value={formData.competencias}
+                  onChange={handleChange}
+                  rows="2"
+                  placeholder="Ej: Liderazgo, Gestión de proyectos, Comunicación..."
+                  disabled={isLoading}
+                  className="form-input-custom"
+                />
+              </div>
+
+              <div className="form-group-custom">
+                <label htmlFor="logros" className="optional-custom">
+                  Logros Profesionales
+                </label>
+                <textarea
+                  id="logros"
+                  name="logros"
+                  value={formData.logros}
+                  onChange={handleChange}
+                  rows="3"
+                  placeholder="Ej: Proyectos destacados, Certificaciones, Reconocimientos..."
+                  disabled={isLoading}
+                  className="form-input-custom"
+                />
+              </div>
+
+              <div className="form-actions-custom">
+                <button
+                  type="submit"
+                  className={`submit-btn-custom ${isLoading ? 'loading' : ''}`}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <span className="spinner-custom"></span>
+                      Registrando...
+                    </>
+                  ) : (
+                    '💡 Registrar Egresado'
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  className="back-btn-custom"
+                  onClick={handleBack}
+                  disabled={isLoading}
+                >
+                  ← Volver al Inicio
+                </button>
+              </div>
+            </form>
+
+            <div className="form-footer-custom">
+              <p className="required-note-custom">
+                * Campos obligatorios
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
