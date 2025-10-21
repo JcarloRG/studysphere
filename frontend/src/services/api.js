@@ -511,6 +511,243 @@ export const apiService = {
         message: 'Error al validar credenciales'
       };
     }
+  },
+
+  /* ========== FUNCIONES PARA MATCHES ========== */
+
+  /* ---------- Enviar solicitud de match ---------- */
+  async enviarSolicitudMatch(perfilId, tipo) {
+    console.log(`💫 Enviando solicitud de match a ${tipo} ID: ${perfilId}`);
+    
+    try {
+      const res = await requestJSON('POST', '/api/matches/solicitar/', {
+        perfil_id: perfilId,
+        tipo_perfil: tipo
+      });
+      
+      console.log('📡 Respuesta enviarSolicitudMatch:', res);
+      
+      return {
+        success: true,
+        message: res.message || '¡Solicitud de match enviada exitosamente!',
+        data: res.data,
+        status: res.status,
+      };
+    } catch (error) {
+      console.error('❌ Error en enviarSolicitudMatch:', error);
+      return {
+        success: false,
+        message: error.message || 'Error al enviar la solicitud de match',
+        status: error.status,
+      };
+    }
+  },
+
+  /* ---------- Obtener matches potenciales ---------- */
+  async obtenerMatchesPotenciales() {
+    console.log('🔍 Obteniendo matches potenciales...');
+    
+    try {
+      const res = await requestJSON('GET', '/api/matches/potenciales/');
+      
+      console.log('📡 Respuesta obtenerMatchesPotenciales:', res);
+      
+      return {
+        success: true,
+        message: res.message || 'Matches potenciales obtenidos',
+        matches: res.data || [],
+        status: res.status,
+      };
+    } catch (error) {
+      console.error('❌ Error en obtenerMatchesPotenciales:', error);
+      return {
+        success: false,
+        message: error.message || 'Error al obtener matches potenciales',
+        status: error.status,
+        matches: []
+      };
+    }
+  },
+
+  /* ---------- Aceptar match ---------- */
+  async aceptarMatch(matchId) {
+    console.log(`✅ Aceptando match ID: ${matchId}`);
+    
+    try {
+      const res = await requestJSON('POST', '/api/matches/aceptar/', {
+        match_id: matchId
+      });
+      
+      console.log('📡 Respuesta aceptarMatch:', res);
+      
+      return {
+        success: true,
+        message: res.message || '¡Match aceptado exitosamente!',
+        data: res.data,
+        status: res.status,
+      };
+    } catch (error) {
+      console.error('❌ Error en aceptarMatch:', error);
+      return {
+        success: false,
+        message: error.message || 'Error al aceptar el match',
+        status: error.status,
+      };
+    }
+  },
+
+  /* ---------- Rechazar match ---------- */
+  async rechazarMatch(matchId) {
+    console.log(`❌ Rechazando match ID: ${matchId}`);
+    
+    try {
+      const res = await requestJSON('POST', '/api/matches/rechazar/', {
+        match_id: matchId
+      });
+      
+      console.log('📡 Respuesta rechazarMatch:', res);
+      
+      return {
+        success: true,
+        message: res.message || 'Match rechazado',
+        data: res.data,
+        status: res.status,
+      };
+    } catch (error) {
+      console.error('❌ Error en rechazarMatch:', error);
+      return {
+        success: false,
+        message: error.message || 'Error al rechazar el match',
+        status: error.status,
+      };
+    }
+  },
+
+  /* ---------- Obtener mis matches ---------- */
+  async obtenerMisMatches() {
+    console.log('🔍 Obteniendo mis matches...');
+    
+    try {
+      const res = await requestJSON('GET', '/api/matches/mis-matches/');
+      
+      console.log('📡 Respuesta obtenerMisMatches:', res);
+      
+      return {
+        success: true,
+        message: res.message || 'Mis matches obtenidos',
+        matches: res.data || [],
+        status: res.status,
+      };
+    } catch (error) {
+      console.error('❌ Error en obtenerMisMatches:', error);
+      return {
+        success: false,
+        message: error.message || 'Error al obtener mis matches',
+        status: error.status,
+        matches: []
+      };
+    }
+  },
+
+  /* ---------- Verificar estado de match ---------- */
+  async verificarEstadoMatch(perfilId) {
+    console.log(`🔍 Verificando estado de match con perfil ID: ${perfilId}`);
+    
+    try {
+      const res = await requestJSON('GET', `/api/matches/estado/${perfilId}/`);
+      
+      console.log('📡 Respuesta verificarEstadoMatch:', res);
+      
+      return {
+        success: true,
+        message: res.message || 'Estado de match obtenido',
+        estado: res.data?.estado || 'no_match',
+        data: res.data,
+        status: res.status,
+      };
+    } catch (error) {
+      console.error('❌ Error en verificarEstadoMatch:', error);
+      return {
+        success: false,
+        message: error.message || 'Error al verificar estado del match',
+        status: error.status,
+        estado: 'error'
+      };
+    }
+  },
+
+  /* ---------- Solicitar código de verificación ---------- */
+  async solicitarCodigoVerificacion(email) {
+    console.log(`📧 Solicitando código de verificación para: ${email}`);
+    
+    try {
+      const res = await requestJSON('POST', '/api/email/request_code/', {
+        email: email,
+        purpose: 'login'
+      });
+      
+      console.log('📡 Respuesta solicitarCodigoVerificacion:', res);
+      
+      return {
+        success: true,
+        message: res.message || 'Código de verificación enviado',
+        data: res.data,
+        status: res.status,
+      };
+    } catch (error) {
+      console.error('❌ Error en solicitarCodigoVerificacion:', error);
+      return {
+        success: false,
+        message: error.message || 'Error al solicitar código de verificación',
+        status: error.status,
+      };
+    }
+  },
+
+  /* ---------- Verificar código ---------- */
+  async verificarCodigo(email, code) {
+    console.log(`🔐 Verificando código para: ${email}`);
+    
+    try {
+      const res = await requestJSON('POST', '/api/email/verify_code/', {
+        email: email,
+        code: code
+      });
+      
+      console.log('📡 Respuesta verificarCodigo:', res);
+      
+      if (res.success) {
+        // Si la verificación es exitosa, buscar el perfil
+        const perfilResult = await this.buscarPerfilPorCorreo(email);
+        
+        if (perfilResult.success) {
+          return {
+            success: true,
+            message: '¡Código verificado exitosamente!',
+            tipo: perfilResult.tipo,
+            id: perfilResult.id,
+            data: perfilResult.data
+          };
+        } else {
+          return {
+            success: false,
+            message: 'Código verificado pero no se encontró el perfil'
+          };
+        }
+      } else {
+        return {
+          success: false,
+          message: res.message || 'Código inválido'
+        };
+      }
+    } catch (error) {
+      console.error('❌ Error en verificarCodigo:', error);
+      return {
+        success: false,
+        message: error.message || 'Error al verificar el código',
+        status: error.status,
+      };
+    }
   }
 
 };

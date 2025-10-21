@@ -120,18 +120,19 @@
     font-size: 1.1rem;
 }
 
-/* Hero Section */
+/* ===== HERO SECTION MODIFICADA ===== */
 .comunidad-hero {
     padding: 60px 40px;
     max-width: 1400px;
     margin: 0 auto;
 }
 
+/* Estadísticas en UNA SOLA FILA */
 .hero-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-    max-width: 900px;
+    grid-template-columns: repeat(4, 1fr); /* 4 columnas en una fila */
+    gap: 25px;
+    max-width: 1200px;
     margin: 0 auto;
 }
 
@@ -139,37 +140,41 @@
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
-    padding: 30px 20px;
+    padding: 35px 25px;
     text-align: center;
     backdrop-filter: blur(10px);
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
 }
 
 .stat-card:hover {
     background: rgba(255, 255, 255, 0.08);
-    transform: translateY(-2px);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
 .stat-icon {
-    font-size: 2.5rem;
+    font-size: 2.8rem;
     margin-bottom: 15px;
+    opacity: 0.9;
 }
 
 .stat-number {
     display: block;
-    font-size: 2rem;
+    font-size: 2.2rem;
     font-weight: 700;
     background: linear-gradient(135deg, #667eea, #764ba2);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
+    line-height: 1;
 }
 
 .stat-label {
     color: #a8b2d1;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     font-weight: 500;
+    line-height: 1.3;
 }
 
 /* Filtros y Búsqueda */
@@ -185,6 +190,8 @@
     border-radius: 16px;
     padding: 30px;
     backdrop-filter: blur(10px);
+    max-width: 800px; /* AGREGAR esta línea */
+    margin: 0 auto; /* AGREGAR esta línea */
 }
 
 .search-bar {
@@ -282,6 +289,25 @@
 
 .filter-emoji {
     font-size: 1.1rem;
+}
+
+/* ===== HEADER MÁS GRANDE ===== */
+.comunidad-header-custom {
+    text-align: center;
+    margin-bottom: 50px;
+    padding-bottom: 40px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+.comunidad-header-custom h2 {
+    background: linear-gradient(135deg, #ffffff, #a8b2d1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 3rem !important; /* Más grande */
+    font-weight: 800; /* Más grueso */
+    margin-bottom: 20px;
+    line-height: 1.1;
 }
 
 /* Secciones generales */
@@ -423,29 +449,32 @@
     100% { transform: rotate(360deg); }
 }
 
+/* ===== RECUADRO "NO SE ENCONTRARON MIEMBROS" ===== */
 .empty-state {
     text-align: center;
-    padding: 80px 20px;
+    padding: 40px 20px !important;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    max-width: 800px !important;
+    margin: 0 auto !important;
 }
 
 .empty-icon {
-    font-size: 4rem;
-    margin-bottom: 20px;
+    font-size: 3rem !important;
+    margin-bottom: 15px !important;
     opacity: 0.5;
 }
 
 .empty-state h3 {
     color: white;
-    margin-bottom: 12px;
-    font-size: 1.5rem;
+    margin-bottom: 10px !important;
+    font-size: 1.3rem !important;
 }
 
 .empty-state p {
     color: #a8b2d1;
-    font-size: 1rem;
+    font-size: 0.95rem !important;
 }
 
 .members-grid {
@@ -578,20 +607,22 @@
     color: white;
 }
 
-/* CTA Section */
+/* ===== CTA SECTION - AJUSTADO IGUAL QUE "NO SE ENCONTRARON MIEMBROS" ===== */
 .comunidad-cta {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 80px 40px;
+    padding: 40px 40px !important;
 }
 
 .cta-content {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 50px 40px;
+    border-radius: 16px;
+    padding: 40px 20px !important; /* Mismo padding que empty-state */
     text-align: center;
     backdrop-filter: blur(10px);
+    max-width: 800px !important; /* Mismo ancho máximo */
+    margin: 0 auto !important;
 }
 
 .cta-content h2 {
@@ -599,23 +630,23 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin-bottom: 16px;
+    font-size: 1.3rem !important; /* Mismo tamaño que empty-state h3 */
+    font-weight: 600;
+    margin-bottom: 10px !important; /* Mismo margen */
 }
 
 .cta-content p {
     color: #a8b2d1;
-    font-size: 1.2rem;
-    margin-bottom: 35px;
-    max-width: 600px;
+    font-size: 0.95rem !important; /* Mismo tamaño que empty-state p */
+    margin-bottom: 20px !important;
+    max-width: 500px;
     margin-left: auto;
     margin-right: auto;
 }
 
 .cta-buttons {
     display: flex;
-    gap: 20px;
+    gap: 15px !important;
     justify-content: center;
     flex-wrap: wrap;
 }
@@ -623,10 +654,10 @@
 .cta-btn {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    padding: 14px 28px;
+    gap: 8px !important;
+    padding: 12px 24px !important;
     border-radius: 12px;
-    font-size: 1rem;
+    font-size: 0.95rem !important;
     font-weight: 600;
     text-decoration: none;
     transition: all 0.2s ease;
@@ -659,7 +690,36 @@
     color: white;
 }
 
+/* Contenido principal */
+.comunidad-content {
+    padding-top: 100px;
+    min-height: 100vh;
+}
+
+/* Asegurar que el contenido de la comunidad tenga suficiente padding */
+.comunidad-hero,
+.filters-section,
+.featured-section,
+.members-section,
+.comunidad-cta {
+    padding: 0 40px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.comunidad-hero {
+    padding-top: 40px;
+    padding-bottom: 40px;
+}
+
 /* Responsive */
+@media (max-width: 1200px) {
+    .hero-stats {
+        grid-template-columns: repeat(2, 1fr); /* 2 columnas en tablets */
+        gap: 20px;
+    }
+}
+
 @media (max-width: 768px) {
     .header-content {
         flex-direction: column;
@@ -681,7 +741,12 @@
     }
 
     .hero-stats {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: 1fr; /* 1 columna en móviles */
+        gap: 15px;
+    }
+
+    .comunidad-header-custom h2 {
+        font-size: 2.2rem !important;
     }
 
     .featured-grid,
@@ -706,206 +771,6 @@
     .cta-buttons {
         flex-direction: column;
         align-items: center;
-    }
-
-    .cta-btn {
-        width: 100%;
-        max-width: 300px;
-        justify-content: center;
-    }
-}
-
-@media (max-width: 480px) {
-    .hero-stats {
-        grid-template-columns: 1fr;
-    }
-
-    .stat-card {
-        padding: 20px 15px;
-    }
-
-    .filters-content {
-        padding: 20px;
-    }
-
-    .member-card {
-        padding: 20px;
-    }
-
-    .cta-content {
-        padding: 30px 20px;
-    }
-
-    .cta-content h2 {
-        font-size: 2rem;
-    }
-}
-
-/* Comunidad.css - Estilos actualizados para el header premium */
-
-.comunidad-content {
-    padding-top: 100px;
-    min-height: 100vh;
-}
-
-.comunidad-header-custom {
-    text-align: center;
-    margin-bottom: 40px;
-    padding-bottom: 30px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.comunidad-header-custom h2 {
-    background: linear-gradient(135deg, #ffffff, #a8b2d1);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin-bottom: 16px;
-}
-
-/* Asegurar que el contenido de la comunidad tenga suficiente padding */
-.comunidad-hero,
-.filters-section,
-.featured-section,
-.members-section,
-.comunidad-cta {
-    padding: 0 40px;
-    max-width: 1400px;
-    margin: 0 auto;
-}
-
-.comunidad-hero {
-    padding-top: 40px;
-    padding-bottom: 40px;
-}
-
-/* ===== ESTILOS MÁS PEQUEÑOS PARA LOS RECUADROS ===== */
-
-/* Recuadro "No se encontraron miembros" - MÁS PEQUEÑO */
-.empty-state {
-    text-align: center;
-    padding: 40px 20px !important; /* Reducido de 80px a 40px */
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    max-width: 8000px !important; /* Limitar ancho máximo */
-    margin: 0 auto !important;
-}
-
-.empty-icon {
-    font-size: 3rem !important; /* Reducido de 4rem a 3rem */
-    margin-bottom: 15px !important;
-    opacity: 0.5;
-}
-
-.empty-state h3 {
-    color: white;
-    margin-bottom: 10px !important; /* Reducido de 12px a 10px */
-    font-size: 1.3rem !important; /* Reducido de 1.5rem a 1.3rem */
-}
-
-.empty-state p {
-    color: #a8b2d1;
-    font-size: 0.95rem !important; /* Reducido ligeramente */
-}
-
-/* Recuadro "¿No encuentras lo que buscas?" - MÁS PEQUEÑO */
-.comunidad-cta {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 40px 40px !important; /* Reducido de 80px a 40px */
-}
-
-.cta-content {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 30px 40px !important; /* Reducido de 50px a 30px */
-    text-align: center;
-    backdrop-filter: blur(10px);
-    max-width: 800px !important; /* Limitar ancho máximo */
-    margin: 0 auto !important;
-}
-
-.cta-content h2 {
-    background: linear-gradient(135deg, #ffffff, #a8b2d1);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-size: 1.8rem !important; /* Reducido de 2.5rem a 1.8rem */
-    font-weight: 700;
-    margin-bottom: 12px !important; /* Reducido de 16px a 12px */
-}
-
-.cta-content p {
-    color: #a8b2d1;
-    font-size: 1rem !important; /* Reducido de 1.2rem a 1rem */
-    margin-bottom: 25px !important; /* Reducido de 35px a 25px */
-    max-width: 500px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.cta-buttons {
-    display: flex;
-    gap: 15px !important; /* Reducido de 20px a 15px */
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.cta-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px !important; /* Reducido de 10px a 8px */
-    padding: 12px 24px !important; /* Reducido de 14px a 12px */
-    border-radius: 12px;
-    font-size: 0.95rem !important; /* Reducido ligeramente */
-    font-weight: 600;
-    text-decoration: none;
-    transition: all 0.2s ease;
-}
-
-/* Responsive para los recuadros más pequeños */
-@media (max-width: 768px) {
-    .comunidad-content {
-        padding-top: 90px;
-    }
-    
-    .comunidad-hero,
-    .filters-section,
-    .featured-section,
-    .members-section,
-    .comunidad-cta {
-        padding: 0 20px;
-    }
-    
-    .comunidad-header-custom h2 {
-        font-size: 2rem;
-    }
-
-    /* Recuadros en móvil */
-    .empty-state {
-        padding: 30px 15px !important;
-        max-width: 90% !important;
-    }
-
-    .cta-content {
-        padding: 25px 20px !important;
-        max-width: 90% !important;
-    }
-
-    .cta-content h2 {
-        font-size: 1.6rem !important;
-    }
-
-    .cta-content p {
-        font-size: 0.9rem !important;
-    }
-
-    .cta-buttons {
-        flex-direction: column;
         gap: 10px !important;
     }
 
@@ -915,9 +780,36 @@
         justify-content: center;
         padding: 10px 20px !important;
     }
+
+    /* Recuadros en móvil */
+    .empty-state {
+        padding: 30px 15px !important;
+        max-width: 90% !important;
+    }
+
+    .cta-content {
+        padding: 30px 15px !important;
+        max-width: 90% !important;
+    }
+
+    .cta-content h2 {
+        font-size: 1.2rem !important;
+    }
+
+    .cta-content p {
+        font-size: 0.9rem !important;
+    }
 }
 
 @media (max-width: 480px) {
+    .hero-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-card {
+        padding: 25px 20px;
+    }
+
     .comunidad-hero,
     .filters-section,
     .featured-section,
@@ -927,7 +819,15 @@
     }
     
     .comunidad-header-custom h2 {
-        font-size: 1.8rem;
+        font-size: 1.8rem !important;
+    }
+
+    .filters-content {
+        padding: 20px;
+    }
+
+    .member-card {
+        padding: 20px;
     }
 
     /* Recuadros en móvil pequeño */
@@ -944,15 +844,492 @@
     }
 
     .cta-content {
-        padding: 20px 15px !important;
+        padding: 25px 15px !important;
     }
 
     .cta-content h2 {
-        font-size: 1.4rem !important;
+        font-size: 1.1rem !important;
     }
 
     .cta-content p {
         font-size: 0.85rem !important;
-        margin-bottom: 20px !important;
+        margin-bottom: 15px !important;
+    }
+}
+
+/* Estilos para los botones de match */
+.match-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-width: 100px;
+    height: 36px;
+}
+
+.match-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.match-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.match-btn.matched {
+    background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+}
+
+.mini-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Para los perfiles destacados */
+.featured-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.featured-actions .view-profile-btn {
+    flex: 1;
+    min-width: 120px;
+    text-align: center;
+    background: transparent;
+    color: #667eea;
+    border: 2px solid #667eea;
+    padding: 8px 16px;
+    border-radius: 20px;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.featured-actions .view-profile-btn:hover {
+    background: #667eea;
+    color: white;
+    transform: translateY(-2px);
+}
+
+.featured-actions .match-btn {
+    flex: 1;
+    min-width: 120px;
+}
+
+/* Para las tarjetas de miembros */
+.member-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.member-actions .profile-link {
+    flex: 1;
+    min-width: 140px;
+    text-align: center;
+    background: transparent;
+    color: #667eea;
+    border: 2px solid #667eea;
+    padding: 8px 12px;
+    border-radius: 20px;
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.member-actions .profile-link:hover {
+    background: #667eea;
+    color: white;
+    transform: translateY(-2px);
+}
+
+.member-actions .contact-btn {
+    flex: 1;
+    min-width: 100px;
+    text-align: center;
+    background: transparent;
+    color: #4ecdc4;
+    border: 2px solid #4ecdc4;
+    padding: 8px 12px;
+    border-radius: 20px;
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.member-actions .contact-btn:hover {
+    background: #4ecdc4;
+    color: white;
+    transform: translateY(-2px);
+}
+
+.member-actions .match-btn {
+    flex: 1;
+    min-width: 100px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .featured-actions {
+        flex-direction: column;
+    }
+    
+    .member-actions {
+        flex-direction: column;
+    }
+    
+    .featured-actions .view-profile-btn,
+    .featured-actions .match-btn,
+    .member-actions .profile-link,
+    .member-actions .contact-btn,
+    .member-actions .match-btn {
+        min-width: 100%;
+    }
+}
+
+/* ===== ESTILOS PARA SISTEMA DE MATCHING ===== */
+
+/* Selector de Modo */
+.view-mode-selector {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin: 25px 0;
+}
+
+.mode-btn {
+    padding: 12px 24px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: #a8b2d1;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.mode-btn.active {
+    background: rgba(102, 126, 234, 0.2);
+    border-color: #667eea;
+    color: white;
+}
+
+.mode-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+/* Tarjeta de Matching */
+.matching-card-container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.matching-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 30px;
+    backdrop-filter: blur(10px);
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.matching-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* Badge de Compatibilidad */
+.compatibility-badge {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    padding: 8px 12px;
+    border-radius: 20px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.compatibility-score {
+    display: block;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.compatibility-badge span:last-child {
+    font-size: 0.7rem;
+    opacity: 0.9;
+}
+
+/* Header del Perfil en Matching */
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.profile-avatar-large {
+    font-size: 3.5rem;
+    width: 70px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+}
+
+.profile-basic-info h3 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+    color: white;
+}
+
+.profile-role {
+    color: #a8b2d1;
+    font-size: 1rem;
+    margin-bottom: 10px;
+}
+
+.availability-tag {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.availability-tag.disponible {
+    background: rgba(76, 175, 80, 0.2);
+    color: #4caf50;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+/* Bio */
+.profile-bio {
+    margin-bottom: 20px;
+}
+
+.profile-bio p {
+    color: #a8b2d1;
+    line-height: 1.6;
+    font-size: 1rem;
+}
+
+/* Skills e Intereses */
+.profile-skills-section,
+.profile-interests {
+    margin-bottom: 20px;
+}
+
+.profile-skills-section h4,
+.profile-interests h4 {
+    color: white;
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.skills-tags,
+.interests-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.skill-tag,
+.interest-tag {
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.skill-tag {
+    background: rgba(102, 126, 234, 0.2);
+    color: #667eea;
+    border: 1px solid rgba(102, 126, 234, 0.3);
+}
+
+.interest-tag {
+    background: rgba(255, 255, 255, 0.1);
+    color: #a8b2d1;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Botones de Matching */
+.matching-actions {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 25px;
+}
+
+.pass-btn,
+.like-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 15px 25px;
+    border: none;
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+}
+
+.pass-btn {
+    background: rgba(244, 67, 54, 0.2);
+    color: #f44336;
+    border: 2px solid rgba(244, 67, 54, 0.3);
+}
+
+.like-btn {
+    background: rgba(76, 175, 80, 0.2);
+    color: #4caf50;
+    border: 2px solid rgba(76, 175, 80, 0.3);
+}
+
+.pass-btn:hover {
+    background: rgba(244, 67, 54, 0.3);
+    transform: scale(1.1);
+}
+
+.like-btn:hover {
+    background: rgba(76, 175, 80, 0.3);
+    transform: scale(1.1);
+}
+
+.action-icon {
+    font-size: 1.5rem;
+}
+
+/* Mini Matches */
+.matches-preview {
+    margin-top: 30px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.matches-preview h4 {
+    color: white;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+.matches-mini-grid {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.match-mini-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+}
+
+.match-mini-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
+}
+
+.match-mini-avatar {
+    font-size: 1.5rem;
+}
+
+.match-mini-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.match-mini-name {
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.match-mini-role {
+    color: #a8b2d1;
+    font-size: 0.8rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .matching-card-container {
+        padding: 10px;
+    }
+    
+    .matching-card {
+        padding: 20px;
+    }
+    
+    .profile-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+    }
+    
+    .matching-actions {
+        gap: 15px;
+    }
+    
+    .pass-btn,
+    .like-btn {
+        width: 70px;
+        height: 70px;
+        padding: 12px 20px;
+    }
+    
+    .view-mode-selector {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .mode-btn {
+        width: 200px;
     }
 }

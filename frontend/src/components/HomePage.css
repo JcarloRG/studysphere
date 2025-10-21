@@ -1,4 +1,4 @@
-/* HomePage.css - Contenedor más ancho y menos espaciado */
+/* HomePage.css - Fondo completo SOLO para HomePage */
 
 /* Reset y base */
 * {
@@ -15,7 +15,7 @@ body {
     overflow-x: hidden;
 }
 
-/* Fondo con elementos decorativos estáticos */
+/* ===== FONDO COMPLETO SOLO PARA HOMEPAGE ===== */
 .home-container {
     min-height: 100vh;
     background: 
@@ -24,6 +24,8 @@ body {
         radial-gradient(ellipse at 40% 80%, rgba(119, 198, 255, 0.1) 0%, transparent 50%),
         linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 50%, #16213e 100%);
     position: relative;
+    width: 100%; /* Fondo completo */
+    padding-top: 30px; /* Espacio para header fijo */
 }
 
 .background-shapes {
@@ -75,7 +77,7 @@ body {
     right: 20%;
 }
 
-/* Header - Contenedor más ancho */
+/* Header - Fondo completo pero contenido centrado */
 .premium-header {
     position: fixed;
     top: 0;
@@ -86,12 +88,13 @@ body {
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     z-index: 1000;
     padding: 12px 0;
+    width: 100%; /* Header completo */
 }
 
 .header-content {
-    max-width: 1400px; /* Más ancho */
+    max-width: 1400px; /* Contenido centrado */
     margin: 0 auto;
-    padding: 0 40px; /* Más padding lateral */
+    padding: 0 40px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -176,20 +179,22 @@ body {
     border-color: rgba(255, 255, 255, 0.2);
 }
 
-/* Hero Section - Menos espaciado */
+/* Hero Section - Ajustado para header fijo */
 .hero-section {
-    min-height: 70vh; /* Menos alto */
+    min-height: 70vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    max-width: 1400px; /* Más ancho */
+    max-width: 1400px;
     margin: 0 auto;
-    padding: 90px 40px 30px; /* Menos padding vertical */
+    padding: 40px 40px 30px; /* Menos padding superior por header fijo */
 }
 
 .hero-content {
     text-align: center;
-    max-width: 800px; /* Más ancho para el contenido */
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
 }
 
 .hero-badge {
@@ -199,15 +204,15 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 18px;
     padding: 6px 14px;
-    margin-bottom: 20px; /* Menos margen */
+    margin-bottom: 20px;
     font-size: 0.85rem;
 }
 
 .hero-title {
-    font-size: 2.8rem; /* Un poco más pequeño */
+    font-size: 2.8rem;
     font-weight: 700;
     line-height: 1.1;
-    margin-bottom: 16px; /* Menos margen */
+    margin-bottom: 16px;
     background: linear-gradient(135deg, #ffffff 0%, #a8b2d1 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -225,7 +230,7 @@ body {
     font-size: 1.1rem;
     color: #a8b2d1;
     line-height: 1.6;
-    margin-bottom: 25px; /* Menos margen */
+    margin-bottom: 25px;
     max-width: 600px;
     margin-left: auto;
     margin-right: auto;
@@ -233,7 +238,7 @@ body {
 
 .hero-stats {
     display: flex;
-    gap: 25px; /* Menos gap */
+    gap: 25px;
     justify-content: center;
 }
 
@@ -243,7 +248,7 @@ body {
 
 .stat-number {
     display: block;
-    font-size: 1.6rem; /* Un poco más pequeño */
+    font-size: 1.6rem;
     font-weight: 700;
     background: linear-gradient(135deg, #667eea, #764ba2);
     -webkit-background-clip: text;
@@ -256,22 +261,22 @@ body {
     color: #a8b2d1;
 }
 
-/* Sección de Registros - Menos espaciado y más ancha */
+/* Sección de Registros */
 .registration-section {
-    max-width: 1400px; /* Más ancho */
+    max-width: 1400px;
     margin: 0 auto;
-    padding: 40px 40px 50px; /* Menos padding superior */
+    padding: 40px 40px 50px;
 }
 
 .section-header {
     text-align: center;
-    margin-bottom: 30px; /* Menos margen */
+    margin-bottom: 30px;
 }
 
 .section-header h2 {
-    font-size: 2.2rem; /* Un poco más pequeño */
+    font-size: 2.2rem;
     font-weight: 700;
-    margin-bottom: 8px; /* Mucho menos margen */
+    margin-bottom: 8px;
     background: linear-gradient(135deg, #ffffff, #a8b2d1);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -283,12 +288,11 @@ body {
     color: #a8b2d1;
 }
 
-/* Grid de registros más ancho y compacto */
 .registration-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); /* Cards más anchas */
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
     gap: 20px;
-    max-width: 1200px; /* Más ancho */
+    max-width: 1200px;
     margin: 0 auto;
 }
 
@@ -332,20 +336,20 @@ body {
 
 .card-icon {
     font-size: 2.5rem;
-    margin-bottom: 18px; /* Menos margen */
+    margin-bottom: 18px;
 }
 
 .registration-card h3 {
     font-size: 1.4rem;
     font-weight: 600;
-    margin-bottom: 10px; /* Menos margen */
+    margin-bottom: 10px;
     color: white;
 }
 
 .registration-card p {
     color: #a8b2d1;
     line-height: 1.5;
-    margin-bottom: 18px; /* Menos margen */
+    margin-bottom: 18px;
     flex-grow: 1;
     font-size: 0.95rem;
 }
@@ -357,25 +361,25 @@ body {
 
 .card-features li {
     color: #a8b2d1;
-    margin-bottom: 5px; /* Menos margen */
+    margin-bottom: 5px;
     display: flex;
     align-items: center;
     gap: 8px;
     font-size: 0.85rem;
 }
 
-/* Acciones Rápidas - Más compacto */
+/* Acciones Rápidas */
 .quick-actions {
-    max-width: 1400px; /* Más ancho */
+    max-width: 1400px;
     margin: 0 auto;
-    padding: 30px 40px 50px; /* Menos padding superior */
+    padding: 30px 40px 50px;
 }
 
 .actions-content {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
-    padding: 30px; /* Menos padding */
+    padding: 30px;
     text-align: center;
     max-width: 600px;
     margin: 0 auto;
@@ -384,7 +388,7 @@ body {
 .actions-content h3 {
     font-size: 1.3rem;
     font-weight: 600;
-    margin-bottom: 20px; /* Menos margen */
+    margin-bottom: 20px;
     color: white;
 }
 
@@ -560,6 +564,10 @@ body {
 }
 
 @media (max-width: 768px) {
+    .home-container {
+        padding-top: 70px;
+    }
+    
     .header-content,
     .hero-section,
     .registration-section,
@@ -570,7 +578,7 @@ body {
 
     .hero-section {
         min-height: 60vh;
-        padding: 80px 20px 20px;
+        padding: 30px 20px 20px;
     }
 
     .hero-title {
@@ -604,6 +612,10 @@ body {
 }
 
 @media (max-width: 480px) {
+    .home-container {
+        padding-top: 65px;
+    }
+    
     .header-content {
         padding: 0 15px;
     }

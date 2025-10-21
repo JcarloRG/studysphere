@@ -11,8 +11,14 @@ from datetime import datetime, timedelta
 
 import mysql.connector
 
-# ===================== Helpers =====================
 
+# ===================== Health =====================
+
+@csrf_exempt
+def health(request):
+    return json_ok({'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')}, "OK")
+
+# ===================== Helpers =====================
 def db_conn():
     return mysql.connector.connect(
         host='127.0.0.1',
@@ -303,7 +309,8 @@ def listar_estudiantes(request):
         conn = db_conn()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
-            SELECT id, nombre_completo, correo_institucional, numero_control, carrera_actual, email_verificado
+            SELECT id, nombre_completo, correo_institucional, numero_control, carrera_actual, 
+                   otra_carrera, semestre, habilidades, area_interes, fecha_registro
             FROM estudiantes ORDER BY id DESC
         """)
         rows = cursor.fetchall()
@@ -319,7 +326,8 @@ def listar_docentes(request):
         conn = db_conn()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
-            SELECT id, nombre_completo, correo_institucional, carrera_egreso, grado_academico, email_verificado
+            SELECT id, nombre_completo, correo_institucional, carrera_egreso, 
+                   carreras_imparte, grado_academico, habilidades, logros, fecha_registro
             FROM docentes ORDER BY id DESC
         """)
         rows = cursor.fetchall()
@@ -335,7 +343,9 @@ def listar_egresados(request):
         conn = db_conn()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
-            SELECT id, nombre_completo, correo_institucional, carrera_egreso, anio_egreso, email_verificado
+            SELECT id, nombre_completo, correo_institucional, carrera_egreso, anio_egreso,
+                   ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, 
+                   competencias, fecha_registro
             FROM egresados ORDER BY id DESC
         """)
         rows = cursor.fetchall()
@@ -355,7 +365,11 @@ def perfil_estudiante(request, estudiante_id):
     try:
         conn = db_conn()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM estudiantes WHERE id=%s", (estudiante_id,))
+        cursor.execute("""
+            SELECT id, nombre_completo, correo_institucional, numero_control, carrera_actual,
+                   otra_carrera, semestre, habilidades, area_interes, fecha_registro
+            FROM estudiantes WHERE id=%s
+        """, (estudiante_id,))
         row = cursor.fetchone()
         cursor.close(); conn.close()
         if not row:
@@ -373,7 +387,11 @@ def perfil_docente(request, docente_id):
     try:
         conn = db_conn()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM docentes WHERE id=%s", (docente_id,))
+        cursor.execute("""
+            SELECT id, nombre_completo, correo_institucional, carrera_egreso,
+                   carreras_imparte, grado_academico, habilidades, logros, fecha_registro
+            FROM docentes WHERE id=%s
+        """, (docente_id,))
         row = cursor.fetchone()
         cursor.close(); conn.close()
         if not row:
@@ -391,7 +409,12 @@ def perfil_egresado(request, egresado_id):
     try:
         conn = db_conn()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM egresados WHERE id=%s", (egresado_id,))
+        cursor.execute("""
+            SELECT id, nombre_completo, correo_institucional, carrera_egreso, anio_egreso,
+                   ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, 
+                   competencias, fecha_registro
+            FROM egresados WHERE id=%s
+        """, (egresado_id,))
         row = cursor.fetchone()
         cursor.close(); conn.close()
         if not row:
@@ -505,18 +528,14 @@ def verify_email_code(request):
         conn.commit()
         cursor2.close()
 
-        # Actualizar email_verificado en la tabla del perfil si viene la info
+        # Actualizar email_verified en la tabla del perfil si viene la info
         perfil_id = row.get('perfil_id')
         tipo = (row.get('tipo') or '').strip().lower()
         if perfil_id and tipo in ('estudiante', 'docente', 'egresado'):
             tabla = 'estudiantes' if tipo == 'estudiante' else ('docentes' if tipo == 'docente' else 'egresados')
             cursor3 = conn.cursor()
-            # Algunos esquemas usan email_verificado, otros email_verified; ajusta el que tengas
-            try:
-                cursor3.execute(f"UPDATE {tabla} SET email_verificado=1, verified_at=%s WHERE id=%s", (now, perfil_id))
-            except Exception:
-                # fallback a email_verified si tu columna se llama así
-                cursor3.execute(f"UPDATE {tabla} SET email_verified=1 WHERE id=%s", (perfil_id,))
+            # Usar email_verified que es el nombre correcto en tu BD
+            cursor3.execute(f"UPDATE {tabla} SET email_verified=1, verified_at=%s WHERE id=%s", (now, perfil_id))
             conn.commit()
             cursor3.close()
 
