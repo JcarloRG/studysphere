@@ -264,6 +264,7 @@ const Perfil = () => {
                         </span>
                         <h1 className="perfil-title">Perfil de {perfil.nombre_completo}</h1>
                     </div>
+                    
                 </div>
                 
                 <div className="perfil-grid-layout">

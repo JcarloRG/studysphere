@@ -263,22 +263,7 @@ const HomePage = () => {
                 </div>
             </section>
 
-            {/* Acciones Rápidas - Más compacto */}
-            <section className="quick-actions">
-                <div className="actions-content">
-                    <h3>¿Qué quieres hacer?</h3>
-                    <div className="action-buttons">
-                        <Link to="/comunidad" className="action-btn explore-btn">
-                            <span className="btn-icon">🌐</span>
-                            <span>Explorar Comunidad</span>
-                        </Link>
-                        <Link to="/registros/estudiantes" className="action-btn members-btn">
-                            <span className="btn-icon">👥</span>
-                            <span>Ver Miembros</span>
-                        </Link>
-                    </div>
-                </div>
-            </section>
+           
         </div>
     );
 };
