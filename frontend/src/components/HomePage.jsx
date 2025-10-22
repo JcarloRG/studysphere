@@ -6,20 +6,24 @@ import './HomePage.css';
 const HomePage = () => {
     const navigate = useNavigate();
     const [showLoginModal, setShowLoginModal] = useState(false);
+    // 🌟 NUEVO ESTADO para controlar la animación CSS 
+    const [modalOpen, setModalOpen] = useState(false); 
     const [email, setEmail] = useState('');
-    // 1. NUEVO ESTADO PARA LA CONTRASEÑA
     const [password, setPassword] = useState(''); 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
     const handleMiPerfil = () => {
-        setShowLoginModal(true);
+        setShowLoginModal(true); // 1. Muestra el modal en el DOM inmediatamente
+        // 2. Espera un microsegundo y aplica la clase 'open' para iniciar el slide-in
+        setTimeout(() => {
+            setModalOpen(true);
+        }, 10); 
         setError('');
-        // Limpiar contraseña al abrir el modal
         setPassword(''); 
     };
 
-    // 2. LÓGICA DE LOGIN ACTUALIZADA PARA USAR CORREO Y CONTRASEÑA
+    // LÓGICA DE LOGIN (se mantiene sin cambios, usa email y password)
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -29,23 +33,22 @@ const HomePage = () => {
             try {
                 console.log('🔍 Intentando iniciar sesión para:', email);
                 
-                // LLAMADA A TU NUEVA API DE LOGIN
-                // NOTA: Debes asegurarte de que apiService.loginUser esté definido y apunte a '/users/api/login/'
                 const result = await apiService.loginUser(email, password); 
                 
                 if (result.success) {
                     console.log('✅ Inicio de sesión exitoso:', result.data);
                     
-                    // Lógica de sesión (ej. guardar token o info del usuario)
-                    // localStorage.setItem('userToken', result.data.token); 
-                    
-                    // Redirigir al perfil del usuario autenticado
+                    // Lógica de sesión y redirección
                     navigate(`/perfil/${result.data.tipo}/${result.data.perfil_id}`);
-                    setShowLoginModal(false);
-                    setEmail('');
-                    setPassword('');
+                    
+                    // Lógica de cierre limpia y animada
+                    setModalOpen(false);
+                    setTimeout(() => {
+                        setShowLoginModal(false);
+                        setEmail('');
+                        setPassword('');
+                    }, 400); // 400ms es la duración de la transición en HomePage.css
                 } else {
-                    // Muestra el error de autenticación (correo o contraseña incorrectos)
                     setError(result.message || 'Correo o contraseña incorrectos.');
                 }
             } catch (err) {
@@ -60,10 +63,14 @@ const HomePage = () => {
     };
 
     const handleCloseModal = () => {
-        setShowLoginModal(false);
-        setEmail('');
-        setPassword(''); // Limpiar contraseña al cerrar
-        setError('');
+        setModalOpen(false); // 1. Quita la clase 'open' para iniciar el slide-out
+        // 2. Espera a que la animación termine (400ms) antes de remover el modal del DOM
+        setTimeout(() => {
+            setShowLoginModal(false);
+            setEmail('');
+            setPassword(''); 
+            setError('');
+        }, 400); // Ajusta este tiempo al CSS transition-duration (0.4s)
     };
 
     return (
@@ -99,7 +106,8 @@ const HomePage = () => {
             {/* Modal de Login */}
             {showLoginModal && (
                 <div className="modal-overlay">
-                    <div className="premium-modal">
+                    {/* 🌟 Aplicar la clase 'open' para la animación de slide-in 🌟 */}
+                    <div className={`premium-modal ${modalOpen ? 'open' : ''}`}> 
                         <div className="modal-header">
                             <div className="modal-icon">🔐</div>
                             <h2>Iniciar Sesión</h2>
@@ -126,20 +134,19 @@ const HomePage = () => {
                                 />
                             </div>
                             
-                            {/* 3. NUEVO CAMPO DE CONTRASEÑA */}
+                            {/* CAMPO DE CONTRASEÑA */}
                             <div className="form-group">
                                 <label htmlFor="password">Contraseña</label>
                                 <input
                                     type="password"
                                     id="password"
                                     value={password}
-                                    onChange={(e) => setPassword(e.target.value)} // Asignar al nuevo estado 'password'
+                                    onChange={(e) => setPassword(e.target.value)}
                                     placeholder="Tu contraseña"
                                     required
                                     disabled={loading}
                                 />
                             </div>
-                            {/* FIN DEL NUEVO CAMPO */}
                             
                             {error && (
                                 <div className="error-message">
@@ -160,7 +167,6 @@ const HomePage = () => {
                                 <button 
                                     type="submit" 
                                     className="btn btn-primary"
-                                    // El botón se activa si hay email Y password
                                     disabled={loading || !email || !password} 
                                 >
                                     {loading ? (
