@@ -1,5 +1,36 @@
+# Archivo: apps/users/forms.py (o donde tengas tu forms.py)
+
 from django import forms
 from .models import Estudiante, Docente, Egresado
+
+# =================================================================
+# NUEVO FORMULARIO PARA INICIO DE SESIÓN
+# =================================================================
+
+class LoginForm(forms.Form):
+    """
+    Formulario básico de inicio de sesión que solicita el correo
+    institucional y la contraseña.
+    """
+    correo_institucional = forms.EmailField(
+        label="Correo Institucional",
+        max_length=120,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'tu_correo@institucion.edu'
+        })
+    )
+    password = forms.CharField(
+        label="Contraseña",
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Tu contraseña'
+        })
+    )
+
+# =================================================================
+# FORMULARIOS EXISTENTES
+# =================================================================
 
 class EstudianteForm(forms.ModelForm):
     class Meta:

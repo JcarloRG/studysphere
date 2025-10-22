@@ -84,10 +84,74 @@ def send_verification_email(to_email, code):
         print("❌ Error enviando email:", str(e))
         return False
 
-# ===================== Health =====================
+# ===================== LOGIN =====================
 
-def health(request):
-    return json_ok({'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')}, "OK")
+@csrf_exempt
+def login_user(request):
+    print("🔑 LOGIN USER - Endpoint llamado")
+    opt = allow_options(request)
+    if opt: return opt
+
+    if request.method != 'POST':
+        return json_err('Método no permitido. Usa POST.', 405)
+
+    try:
+        data = json.loads(request.body or "{}")
+        email = (data.get('correo_institucional') or '').strip().lower()
+        password = data.get('password')
+
+        if not email or not password:
+            return json_err('Correo y contraseña son requeridos.', 400)
+        
+        conn = db_conn()
+        cursor = conn.cursor(dictionary=True)
+        user_info = None
+
+        # Tablas a revisar y su tipo
+        tablas = {
+            'estudiantes': 'estudiante',
+            'docentes': 'docente',
+            'egresados': 'egresado'
+        }
+
+        # 1. Buscar en cada tabla
+        for tabla, tipo in tablas.items():
+            # Consulta SQL para verificar correo y contraseña (usando SHA2)
+            sql = f"""
+            SELECT id, nombre_completo, correo_institucional, email_verified
+            FROM {tabla}
+            WHERE LOWER(correo_institucional)=%s AND password_hash=SHA2(%s, 256)
+            LIMIT 1
+            """
+            cursor.execute(sql, (email, password))
+            row = cursor.fetchone()
+
+            if row:
+                user_info = {
+                    'perfil_id': row['id'],
+                    'nombre_completo': row['nombre_completo'],
+                    'correo_institucional': row['correo_institucional'],
+                    'tipo': tipo,
+                    'email_verified': bool(row['email_verified'])
+                }
+                break # Usuario encontrado, salir del bucle
+
+        cursor.close()
+        conn.close()
+
+        if user_info:
+            print(f"✅ Usuario {email} ({user_info['tipo']}) inició sesión.")
+            return json_ok(user_info, 'Inicio de sesión exitoso.')
+        else:
+            print(f"❌ Intento fallido de login para {email}.")
+            return json_err('Correo o contraseña incorrectos.', 401)
+
+    except mysql.connector.Error as e:
+        print("❌ ERROR MySQL en login:", str(e))
+        return json_err(f'Error de base de datos: {str(e)}', 500)
+    except Exception as e:
+        print("❌ ERROR general en login:", str(e))
+        return json_err(f'Error interno: {str(e)}', 500)
 
 # ===================== ESTUDIANTES =====================
 
@@ -310,7 +374,7 @@ def listar_estudiantes(request):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, numero_control, carrera_actual, 
-                   otra_carrera, semestre, habilidades, area_interes, fecha_registro
+                    otra_carrera, semestre, habilidades, area_interes, fecha_registro
             FROM estudiantes ORDER BY id DESC
         """)
         rows = cursor.fetchall()
@@ -327,7 +391,7 @@ def listar_docentes(request):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, carrera_egreso, 
-                   carreras_imparte, grado_academico, habilidades, logros, fecha_registro
+                    carreras_imparte, grado_academico, habilidades, logros, fecha_registro
             FROM docentes ORDER BY id DESC
         """)
         rows = cursor.fetchall()
@@ -344,8 +408,8 @@ def listar_egresados(request):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, carrera_egreso, anio_egreso,
-                   ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, 
-                   competencias, fecha_registro
+                    ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, 
+                    competencias, fecha_registro
             FROM egresados ORDER BY id DESC
         """)
         rows = cursor.fetchall()
@@ -367,7 +431,7 @@ def perfil_estudiante(request, estudiante_id):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, numero_control, carrera_actual,
-                   otra_carrera, semestre, habilidades, area_interes, fecha_registro
+                    otra_carrera, semestre, habilidades, area_interes, fecha_registro
             FROM estudiantes WHERE id=%s
         """, (estudiante_id,))
         row = cursor.fetchone()
@@ -389,7 +453,7 @@ def perfil_docente(request, docente_id):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, carrera_egreso,
-                   carreras_imparte, grado_academico, habilidades, logros, fecha_registro
+                    carreras_imparte, grado_academico, habilidades, logros, fecha_registro
             FROM docentes WHERE id=%s
         """, (docente_id,))
         row = cursor.fetchone()
@@ -411,8 +475,8 @@ def perfil_egresado(request, egresado_id):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, carrera_egreso, anio_egreso,
-                   ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, 
-                   competencias, fecha_registro
+                    ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, 
+                    competencias, fecha_registro
             FROM egresados WHERE id=%s
         """, (egresado_id,))
         row = cursor.fetchone()

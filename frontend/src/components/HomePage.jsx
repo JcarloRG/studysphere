@@ -1,45 +1,59 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { apiService } from '../services/api';
+import { apiService } from '../services/api'; 
 import './HomePage.css';
 
 const HomePage = () => {
     const navigate = useNavigate();
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [email, setEmail] = useState('');
+    // 1. NUEVO ESTADO PARA LA CONTRASEÑA
+    const [password, setPassword] = useState(''); 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
     const handleMiPerfil = () => {
         setShowLoginModal(true);
         setError('');
+        // Limpiar contraseña al abrir el modal
+        setPassword(''); 
     };
 
+    // 2. LÓGICA DE LOGIN ACTUALIZADA PARA USAR CORREO Y CONTRASEÑA
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
 
-        if (email && email.includes('@')) {
+        if (email && password) {
             try {
-                console.log('🔍 Buscando perfil con correo:', email);
+                console.log('🔍 Intentando iniciar sesión para:', email);
                 
-                const result = await apiService.buscarPerfilPorCorreo(email);
+                // LLAMADA A TU NUEVA API DE LOGIN
+                // NOTA: Debes asegurarte de que apiService.loginUser esté definido y apunte a '/users/api/login/'
+                const result = await apiService.loginUser(email, password); 
                 
                 if (result.success) {
-                    console.log('✅ Perfil encontrado:', result);
-                    navigate(`/perfil/${result.tipo}/${result.id}`);
+                    console.log('✅ Inicio de sesión exitoso:', result.data);
+                    
+                    // Lógica de sesión (ej. guardar token o info del usuario)
+                    // localStorage.setItem('userToken', result.data.token); 
+                    
+                    // Redirigir al perfil del usuario autenticado
+                    navigate(`/perfil/${result.data.tipo}/${result.data.perfil_id}`);
                     setShowLoginModal(false);
                     setEmail('');
+                    setPassword('');
                 } else {
-                    setError(result.message || 'No se encontró ningún perfil con este correo');
+                    // Muestra el error de autenticación (correo o contraseña incorrectos)
+                    setError(result.message || 'Correo o contraseña incorrectos.');
                 }
             } catch (err) {
                 console.error('💥 Error en login:', err);
-                setError('Error al buscar el perfil: ' + err.message);
+                setError('Error de conexión o servidor. Intenta de nuevo.');
             }
         } else {
-            setError('Por favor ingresa un correo electrónico válido');
+            setError('Por favor ingresa tu correo y contraseña.');
         }
         
         setLoading(false);
@@ -48,6 +62,7 @@ const HomePage = () => {
     const handleCloseModal = () => {
         setShowLoginModal(false);
         setEmail('');
+        setPassword(''); // Limpiar contraseña al cerrar
         setError('');
     };
 
@@ -75,7 +90,7 @@ const HomePage = () => {
                             disabled={loading}
                         >
                             <span className="btn-icon">👤</span>
-                            <span>Mi Perfil</span>
+                            <span>Iniciar sesión</span>
                         </button>
                     </nav>
                 </div>
@@ -111,6 +126,21 @@ const HomePage = () => {
                                 />
                             </div>
                             
+                            {/* 3. NUEVO CAMPO DE CONTRASEÑA */}
+                            <div className="form-group">
+                                <label htmlFor="password">Contraseña</label>
+                                <input
+                                    type="password"
+                                    id="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)} // Asignar al nuevo estado 'password'
+                                    placeholder="Tu contraseña"
+                                    required
+                                    disabled={loading}
+                                />
+                            </div>
+                            {/* FIN DEL NUEVO CAMPO */}
+                            
                             {error && (
                                 <div className="error-message">
                                     <span className="error-icon">⚠️</span>
@@ -130,12 +160,13 @@ const HomePage = () => {
                                 <button 
                                     type="submit" 
                                     className="btn btn-primary"
-                                    disabled={loading || !email}
+                                    // El botón se activa si hay email Y password
+                                    disabled={loading || !email || !password} 
                                 >
                                     {loading ? (
                                         <>
                                             <div className="loading-spinner"></div>
-                                            Buscando...
+                                            Ingresando...
                                         </>
                                     ) : (
                                         'Ingresar a Mi Perfil'

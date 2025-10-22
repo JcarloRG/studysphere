@@ -6,6 +6,9 @@ urlpatterns = [
     # Health
     path('api/health/', views.health, name='health'),
 
+    # LOGIN (NUEVA RUTA)
+    path('api/login/', views.login_user, name='login_user'),
+
     # Registro
     path('api/estudiante/registrar/', views.registrar_estudiante, name='registrar_estudiante'),
     path('api/docente/registrar/', views.registrar_docente, name='registrar_docente'),
