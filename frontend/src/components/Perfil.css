@@ -1,66 +1,236 @@
-/* Perfil.css - Diseño premium consistente con StudySphere */
 
-/* Loading personalizado */
-.loading-container-custom {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 60vh;
-    color: white;
-    gap: 20px;
+.perfil-container {
+    min-height: 100vh;
+    padding-top: 80px; /* Espacio para el header fijo */
+    /* Estilos de fondo globales aplicados en HomePage.css o en el layout principal */
 }
 
-.loading-spinner-large {
-    width: 50px;
-    height: 50px;
-    border: 4px solid rgba(255, 255, 255, 0.3);
-    border-top: 4px solid #667eea;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+/* === ENCABEZADO Y LAYOUT PRINCIPAL === */
+
+.perfil-header-area {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 30px 40px 20px;
 }
 
-/* Información del perfil */
-.perfil-info-custom {
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
-}
-
-.info-section-custom {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 25px;
-    backdrop-filter: blur(10px);
-}
-
-.section-title-custom {
-    background: linear-gradient(135deg, #ffffff, #a8b2d1);
+.perfil-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+    background: linear-gradient(135deg, #ffffff 0%, #a8b2d1 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+}
+
+.perfil-subtitle {
+    font-size: 1rem;
+    color: #a8b2d1;
+    margin-bottom: 20px;
+}
+
+.header-with-emoji {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.perfil-emoji {
+    font-size: 3rem;
+    line-height: 1;
+}
+
+/* 1. LAYOUT PRINCIPAL DE DOS COLUMNAS */
+.perfil-grid-layout {
+    display: grid;
+    grid-template-columns: 3fr 1fr; /* Columna de contenido (3) y barra lateral (1) */
+    gap: 30px;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 40px 60px; /* Padding en la parte inferior */
+}
+
+.perfil-content-wrapper {
+    min-width: 0; /* Necesario para que el contenido no desborde en flexbox */
+}
+
+/* === NAVEGACIÓN POR PESTAÑAS === */
+
+.perfil-tabs {
+    display: flex;
+    gap: 1px; /* Espacio mínimo entre botones */
+    margin-bottom: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    padding: 15px 20px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #a8b2d1;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px; /* Para ocultar la línea divisoria */
+}
+
+.tab-btn:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+    background: #1a1a2e; /* Usamos el color oscuro para la pestaña activa */
+}
+
+.perfil-tab-content {
+    /* 🌟 MODIFICACIÓN CLAVE: Fondo oscuro sólido 🌟 */
+    background: #1a1a2e; 
+    
+    padding: 30px;
+    border-radius: 0 0 16px 16px; /* Borde redondeado solo abajo */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: none;
+    min-height: 400px; 
+}
+
+
+/* === BARRA LATERAL (SIDEBAR) === */
+
+.perfil-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    position: sticky;
+    top: 110px; /* Separación del header */
+    height: fit-content;
+}
+
+.sidebar-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 20px;
+    backdrop-filter: blur(10px);
+}
+
+.sidebar-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: white;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-actions-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sidebar-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+/* Estilos de botones de la barra lateral (usando tus estilos existentes como base) */
+.contactar-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+.contactar-btn:hover {
+    background: linear-gradient(135deg, #5a6fd8, #6a4190);
+    transform: translateY(-1px);
+}
+
+.editar-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.editar-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.eliminar-btn {
+    background: rgba(220, 38, 38, 0.1);
+    color: #fca5a5;
+    border: 1px solid rgba(220, 38, 38, 0.3);
+}
+.eliminar-btn:hover {
+    background: rgba(220, 38, 38, 0.2);
+    border-color: rgba(220, 38, 38, 0.5);
+    transform: translateY(-1px);
+}
+
+/* Enlaces rápidos de la barra lateral (secundarios) */
+.sidebar-link-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    color: #a8b2d1;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+.sidebar-link-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+}
+
+/* === CONTENIDO: ESTILOS BASE DE TUS DATOS === */
+
+.info-grid-custom {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Ajustamos el minmax */
+    gap: 20px;
+}
+
+.info-section-custom {
+    background: transparent; 
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    backdrop-filter: none;
+}
+
+.section-title-custom {
+    /* Estilo del título */
     font-size: 1.4rem;
     font-weight: 600;
     margin-bottom: 20px;
     padding-bottom: 10px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.info-grid-custom {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
+    background: linear-gradient(135deg, #ffffff, #a8b2d1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .info-item-custom {
     display: flex;
     flex-direction: column;
     gap: 8px;
-}
-
-.info-item-custom.full-width {
-    grid-column: 1 / -1;
 }
 
 .info-item-custom label {
@@ -85,125 +255,122 @@
     align-items: center;
 }
 
-/* Enlace de LinkedIn */
-.linkedin-link-custom {
-    color: #667eea;
-    text-decoration: none;
-    transition: color 0.3s ease;
-    word-break: break-all;
-}
-
-.linkedin-link-custom:hover {
-    color: #8b5cf6;
-    text-decoration: underline;
-}
-
-/* Acciones CRUD */
-.crud-actions-custom {
-    display: flex;
-    gap: 15px;
-    margin-top: 30px;
-    flex-wrap: wrap;
-}
-
-.crud-btn-custom {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 14px 24px;
-    border: none;
-    border-radius: 12px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    min-width: 160px;
-    text-decoration: none;
-}
-
-.contactar-btn-custom {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-.contactar-btn-custom:hover {
-    background: linear-gradient(135deg, #5a6fd8, #6a4190);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
-}
-
-.editar-btn-custom {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.editar-btn-custom:hover {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.3);
-    transform: translateY(-2px);
-}
-
-.eliminar-btn-custom {
-    background: rgba(220, 38, 38, 0.1);
-    color: #fca5a5;
-    border: 1px solid rgba(220, 38, 38, 0.3);
-}
-
-.eliminar-btn-custom:hover {
-    background: rgba(220, 38, 38, 0.2);
-    border-color: rgba(220, 38, 38, 0.5);
-    transform: translateY(-2px);
-}
-
-/* Mensajes de error personalizados */
-.error-message-custom {
-    background: rgba(220, 38, 38, 0.1);
-    color: #fca5a5;
+.no-content-message {
     padding: 20px;
-    border-radius: 12px;
-    margin-bottom: 30px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    color: #a8b2d1;
     text-align: center;
-    border: 1px solid rgba(220, 38, 38, 0.3);
-    font-weight: 600;
 }
 
-/* Responsive */
+/* === ESTILOS PARA LA PESTAÑA 'EXPLORAR COMUNIDAD' === */
+
+.explorar-section-custom {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.section-description-custom {
+    font-size: 1rem;
+    color: #a8b2d1;
+}
+
+.action-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-top: 10px;
+}
+
+.action-card {
+    background: rgba(102, 126, 234, 0.05);
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    border-radius: 12px;
+    padding: 20px;
+    text-decoration: none;
+    color: white;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.action-card:hover {
+    background: rgba(102, 126, 234, 0.15);
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+    text-decoration: none;
+}
+
+.action-card h4 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.card-icon {
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.action-card p {
+    color: #a8b2d1;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+/* === MEDIA QUERIES (ADAPTACIÓN) === */
+
+@media (max-width: 1024px) {
+    .perfil-grid-layout {
+        grid-template-columns: 1fr; /* Una sola columna en tablet */
+        padding: 0 30px 60px;
+        gap: 40px;
+    }
+
+    .perfil-header-area {
+        padding: 30px 30px 20px;
+    }
+
+    .perfil-sidebar {
+        position: relative; /* Desactiva sticky en tablet/móvil */
+        top: 0;
+        grid-row: auto; /* Se mueve al final */
+    }
+}
+
 @media (max-width: 768px) {
     .info-grid-custom {
         grid-template-columns: 1fr;
         gap: 15px;
     }
     
-    .crud-actions-custom {
-        flex-direction: column;
+    .perfil-header-area {
+        padding: 20px 20px 15px;
     }
     
-    .crud-btn-custom {
-        width: 100%;
-        min-width: auto;
+    .perfil-grid-layout {
+        padding: 0 20px 40px;
     }
-    
-    .info-section-custom {
-        padding: 20px;
+
+    .perfil-title {
+        font-size: 2rem;
+    }
+
+    .tab-btn {
+        padding: 12px 15px;
+        font-size: 0.9rem;
+    }
+
+    .action-cards-grid {
+        grid-template-columns: 1fr;
     }
 }
 
 @media (max-width: 480px) {
-    .info-section-custom {
-        padding: 15px;
-    }
-    
     .info-item-custom p {
         padding: 10px 12px;
-        font-size: 0.9rem;
-    }
-    
-    .crud-btn-custom {
-        padding: 12px 20px;
         font-size: 0.9rem;
     }
 }

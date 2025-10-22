@@ -16,13 +16,23 @@ body {
 }
 
 /* ===== FONDO COMPLETO SOLO PARA HOMEPAGE ===== */
+/* ===== FONDO COMPLETO SOLO PARA HOMEPAGE / PERFIL ===== */
 .home-container {
     min-height: 100vh;
+    /* 🌟 MODIFICACIÓN CLAVE: Fondo principal más oscuro 🌟 */
+    background: #0f0f0f; /* Color base muy oscuro */
+    /* Mantenemos los radial-gradients si deseas esos efectos de luz,
+       pero cambiamos la gradiente lineal principal por un color oscuro sólido. */
     background: 
         radial-gradient(ellipse at 20% 50%, rgba(120, 119, 198, 0.15) 0%, transparent 50%),
         radial-gradient(ellipse at 80% 20%, rgba(255, 119, 198, 0.1) 0%, transparent 50%),
         radial-gradient(ellipse at 40% 80%, rgba(119, 198, 255, 0.1) 0%, transparent 50%),
+        /* Reemplazamos el gradiente morado por el color base oscuro (#0f0f0f) */
         linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 50%, #16213e 100%);
+    
+    /* Si quieres un fondo sólido sin ningún brillo: */
+    /* background: #121212; */ 
+    
     position: relative;
     width: 100%; /* Fondo completo */
     padding-top: 30px; /* Espacio para header fijo */
