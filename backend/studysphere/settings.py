@@ -184,3 +184,7 @@ LOGGING = {
         'level': 'INFO' if DEBUG else 'WARNING',
     },
 }
+
+# === Media (subida de archivos) ===
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

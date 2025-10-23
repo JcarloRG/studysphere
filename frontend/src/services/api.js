@@ -107,12 +107,80 @@ async function requestJSON(method, path, body, timeoutMs = 20000) {
         const msg =
             parsed?.data?.message ||
             parsed?.data?.detail ||
-            // Si vino HTML del servidor (por ejemplo 500 con plantilla) damos una pista:
             (parsed?.raw && parsed.raw.trim().startsWith('<') ? 'El servidor devolvió HTML (posible error 500). Revisa consola/servidor.' : 'Error en la solicitud');
         throw httpError(msg, { status: response.status, url, raw: parsed?.raw });
     }
 
     // Normalizamos salida
+    const payload = parsed?.data;
+    const normalizedData = payload?.data !== undefined ? payload.data : payload;
+    const message = payload?.message || payload?.detail || undefined;
+
+    return {
+        success: true,
+        status: response.status,
+        data: normalizedData ?? null,
+        raw: parsed?.raw,
+        message,
+    };
+}
+
+/**
+ * Request para multipart/form-data (subida de archivos)
+ * - NO seteamos 'Content-Type'; el navegador agrega el boundary correcto.
+ * @param {'POST'|'PUT'|'PATCH'} method
+ * @param {string} path
+ * @param {FormData} formData
+ * @param {number?} timeoutMs
+ */
+async function requestMultipart(method, path, formData, timeoutMs = 20000) {
+    if (!(formData instanceof FormData)) {
+        throw new Error('requestMultipart requiere un FormData válido');
+    }
+
+    const mustSlash = /[a-zA-Z)]$/.test(path);
+    const normalizedPath = mustSlash ? ensureTrailingSlash(path) : path;
+    const url = joinURL(API_BASE_URL, normalizedPath);
+
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+
+    const init = {
+        method: method.toUpperCase(),
+        headers: {
+            Accept: 'application/json',
+            // Importante: NO poner Content-Type aquí
+        },
+        body: formData,
+        credentials: 'omit',
+        signal: controller.signal,
+    };
+
+    let parsed;
+    let response;
+    try {
+        response = await fetch(url, init);
+        parsed = await parseResponse(response);
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            throw new Error('La solicitud tardó demasiado y fue cancelada.');
+        }
+        if (err.name === 'TypeError' && String(err.message).includes('fetch')) {
+            throw new Error('No se puede conectar al servidor. Verifica que Django esté ejecutándose en ' + API_BASE_URL);
+        }
+        throw err;
+    } finally {
+        clearTimeout(id);
+    }
+
+    if (!response.ok) {
+        const msg =
+            parsed?.data?.message ||
+            parsed?.data?.detail ||
+            (parsed?.raw && parsed.raw.trim().startsWith('<') ? 'El servidor devolvió HTML (posible error 500). Revisa consola/servidor.' : 'Error en la solicitud');
+        throw httpError(msg, { status: response.status, url, raw: parsed?.raw });
+    }
+
     const payload = parsed?.data;
     const normalizedData = payload?.data !== undefined ? payload.data : payload;
     const message = payload?.message || payload?.detail || undefined;
@@ -139,13 +207,12 @@ export const apiService = {
         }
 
         const res = await requestJSON('POST', '/api/login/', {
-            correo_institucional: email, // Usamos el nombre de campo que espera tu backend (Django)
+            correo_institucional: email, // nombre de campo que espera tu backend
             password: password,
         });
 
         console.log('📡 Respuesta loginUser:', res);
 
-        // Si el backend te devuelve los datos del perfil y tipo
         if (res.success && res.data) {
             return {
                 success: true,
@@ -156,9 +223,7 @@ export const apiService = {
             };
         }
         
-        // Si la solicitud fue 200/Success pero el servidor no devolvió el formato esperado
         throw new Error(res.message || 'Respuesta de login inesperada.');
-
     },
     
     /* ---------- CREATE ---------- */
@@ -166,6 +231,19 @@ export const apiService = {
         console.log('🚀 INICIANDO REGISTRO DE ESTUDIANTE...');
         console.log('📦 Datos a enviar:', estudianteData);
 
+        if (estudianteData instanceof FormData) {
+            // ⬇️ Envío con foto (multipart/form-data)
+            const res = await requestMultipart('POST', '/api/estudiante/registrar/', estudianteData);
+            console.log('📡 Respuesta createEstudiante (multipart):', res);
+            return {
+                success: true,
+                message: res.message || '¡Registro exitoso!',
+                data: res.data,
+                status: res.status,
+            };
+        }
+
+        // ⬇️ Envío JSON normal (sin foto)
         if (!estudianteData?.nombre_completo || !estudianteData?.correo_institucional) {
             throw new Error('Nombre y correo son obligatorios');
         }
@@ -265,8 +343,8 @@ export const apiService = {
     async getPerfil(tipo, id) {
         console.log(`🔍 Obteniendo perfil: ${tipo} ID: ${id}`);
         if (tipo === 'estudiante') return this.getPerfilEstudiante(id);
-        if (tipo === 'docente')    return this.getPerfilDocente(id);
-        if (tipo === 'egresado')   return this.getPerfilEgresado(id);
+        if (tipo === 'docente')    return this.getPerfilDocente(id);
+        if (tipo === 'egresado')   return this.getPerfilEgresado(id);
         throw new Error('Tipo de perfil no válido');
     },
 
@@ -395,14 +473,12 @@ export const apiService = {
 
     /* ---------- EMAIL: generar / verificar / estado / reenviar ---------- */
 
-
-
     async emailGenerarCodigo(email, purpose = 'signup', tipo = 'estudiante', perfil_id = null) {
         const res = await requestJSON('POST', '/api/email/request_code/', { email, purpose, tipo, perfil_id });
         return { success: true, ...(res.data || {}), status: res.status, message: res.message };
     },
 
-    // ⬇️ Reenviar código de verificación (usa el endpoint request_code)
+    // ⬇️ Reenviar código de verificación
     async resendCode(email, userType) {
         console.log(`🔄 Reenviando código para: ${email}, tipo: ${userType}`);
         const res = await requestJSON('POST', '/api/email/request_code/', {
@@ -424,7 +500,7 @@ export const apiService = {
         return { success: true, ...(res.data || {}), status: res.status, message: res.message };
     },
     
-    // ⬇️ Verificar código (alias de emailVerificarCodigo)
+    // ⬇️ Alias
     async verifyCode(email, code) {
         return this.emailVerificarCodigo({ email, code });
     },
@@ -435,24 +511,15 @@ export const apiService = {
         return { success: true, ...(res.data || {}), status: res.status, message: res.message };
     },
     
-    // ⬇️ ELIMINADA: La función validarLogin que simulaba la contraseña fue reemplazada por loginUser.
-
-    // ... (El resto de tus funciones de Match se mantienen igual)
-    // He eliminado las funciones duplicadas o redundantes (como la simulación de login y algunas de email)
-    // para mantener el código limpio y enfocado en la nueva lógica de loginUser.
-    
-    // ---------- FUNCIONES PARA MATCHES ---------- 
+    // ---------- MATCHES ----------
     async enviarSolicitudMatch(perfilId, tipo) {
         console.log(`💫 Enviando solicitud de match a ${tipo} ID: ${perfilId}`);
-        
         try {
             const res = await requestJSON('POST', '/api/matches/solicitar/', {
                 perfil_id: perfilId,
                 tipo_perfil: tipo
             });
-            
             console.log('📡 Respuesta enviarSolicitudMatch:', res);
-            
             return {
                 success: true,
                 message: res.message || '¡Solicitud de match enviada exitosamente!',
@@ -461,212 +528,116 @@ export const apiService = {
             };
         } catch (error) {
             console.error('❌ Error en enviarSolicitudMatch:', error);
-            return {
-                success: false,
-                message: error.message || 'Error al enviar la solicitud de match',
-                status: error.status,
-            };
+            return { success: false, message: error.message || 'Error al enviar la solicitud de match', status: error.status };
         }
     },
 
     async obtenerMatchesPotenciales() {
         console.log('🔍 Obteniendo matches potenciales...');
-        
         try {
             const res = await requestJSON('GET', '/api/matches/potenciales/');
-            
             console.log('📡 Respuesta obtenerMatchesPotenciales:', res);
-            
-            return {
-                success: true,
-                message: res.message || 'Matches potenciales obtenidos',
-                matches: res.data || [],
-                status: res.status,
-            };
+            return { success: true, message: res.message || 'Matches potenciales obtenidos', matches: res.data || [], status: res.status };
         } catch (error) {
             console.error('❌ Error en obtenerMatchesPotenciales:', error);
-            return {
-                success: false,
-                message: error.message || 'Error al obtener matches potenciales',
-                status: error.status,
-                matches: []
-            };
+            return { success: false, message: error.message || 'Error al obtener matches potenciales', status: error.status, matches: [] };
         }
     },
 
     async aceptarMatch(matchId) {
         console.log(`✅ Aceptando match ID: ${matchId}`);
-        
         try {
-            const res = await requestJSON('POST', '/api/matches/aceptar/', {
-                match_id: matchId
-            });
-            
+            const res = await requestJSON('POST', '/api/matches/aceptar/', { match_id: matchId });
             console.log('📡 Respuesta aceptarMatch:', res);
-            
-            return {
-                success: true,
-                message: res.message || '¡Match aceptado exitosamente!',
-                data: res.data,
-                status: res.status,
-            };
+            return { success: true, message: res.message || '¡Match aceptado exitosamente!', data: res.data, status: res.status };
         } catch (error) {
             console.error('❌ Error en aceptarMatch:', error);
-            return {
-                success: false,
-                message: error.message || 'Error al aceptar el match',
-                status: error.status,
-            };
+            return { success: false, message: error.message || 'Error al aceptar el match', status: error.status };
         }
     },
 
     async rechazarMatch(matchId) {
         console.log(`❌ Rechazando match ID: ${matchId}`);
-        
         try {
-            const res = await requestJSON('POST', '/api/matches/rechazar/', {
-                match_id: matchId
-            });
-            
+            const res = await requestJSON('POST', '/api/matches/rechazar/', { match_id: matchId });
             console.log('📡 Respuesta rechazarMatch:', res);
-            
-            return {
-                success: true,
-                message: res.message || 'Match rechazado',
-                data: res.data,
-                status: res.status,
-            };
+            return { success: true, message: res.message || 'Match rechazado', data: res.data, status: res.status };
         } catch (error) {
             console.error('❌ Error en rechazarMatch:', error);
-            return {
-                success: false,
-                message: error.message || 'Error al rechazar el match',
-                status: error.status,
-            };
+            return { success: false, message: error.message || 'Error al rechazar el match', status: error.status };
         }
     },
 
     async obtenerMisMatches() {
         console.log('🔍 Obteniendo mis matches...');
-        
         try {
             const res = await requestJSON('GET', '/api/matches/mis-matches/');
-            
             console.log('📡 Respuesta obtenerMisMatches:', res);
-            
-            return {
-                success: true,
-                message: res.message || 'Mis matches obtenidos',
-                matches: res.data || [],
-                status: res.status,
-            };
+            return { success: true, message: res.message || 'Mis matches obtenidos', matches: res.data || [], status: res.status };
         } catch (error) {
             console.error('❌ Error en obtenerMisMatches:', error);
-            return {
-                success: false,
-                message: error.message || 'Error al obtener mis matches',
-                status: error.status,
-                matches: []
-            };
+            return { success: false, message: error.message || 'Error al obtener mis matches', status: error.status, matches: [] };
         }
     },
 
     async verificarEstadoMatch(perfilId) {
         console.log(`🔍 Verificando estado de match con perfil ID: ${perfilId}`);
-        
         try {
             const res = await requestJSON('GET', `/api/matches/estado/${perfilId}/`);
-            
             console.log('📡 Respuesta verificarEstadoMatch:', res);
-            
-            return {
-                success: true,
-                message: res.message || 'Estado de match obtenido',
-                estado: res.data?.estado || 'no_match',
-                data: res.data,
-                status: res.status,
-            };
+            return { success: true, message: res.message || 'Estado de match obtenido', estado: res.data?.estado || 'no_match', data: res.data, status: res.status };
         } catch (error) {
             console.error('❌ Error en verificarEstadoMatch:', error);
-            return {
-                success: false,
-                message: error.message || 'Error al verificar estado del match',
-                status: error.status,
-                estado: 'error'
-            };
+            return { success: false, message: error.message || 'Error al verificar estado del match', status: error.status, estado: 'error' };
         }
     },
 
-    /* ---------- Funciones de Solicitud de Código (Mantenidas) ---------- */
+    /* ---------- Solicitud/Verificación de Código ---------- */
     async solicitarCodigoVerificacion(email) {
         console.log(`📧 Solicitando código de verificación para: ${email}`);
-        
         try {
-            const res = await requestJSON('POST', '/api/email/request_code/', {
-                email: email,
-                purpose: 'login'
-            });
-            
+            const res = await requestJSON('POST', '/api/email/request_code/', { email: email, purpose: 'login' });
             console.log('📡 Respuesta solicitarCodigoVerificacion:', res);
-            
-            return {
-                success: true,
-                message: res.message || 'Código de verificación enviado',
-                data: res.data,
-                status: res.status,
-            };
+            return { success: true, message: res.message || 'Código de verificación enviado', data: res.data, status: res.status };
         } catch (error) {
             console.error('❌ Error en solicitarCodigoVerificacion:', error);
-            return {
-                success: false,
-                message: error.message || 'Error al solicitar código de verificación',
-                status: error.status,
-            };
+            return { success: false, message: error.message || 'Error al solicitar código de verificación', status: error.status };
         }
     },
 
     async verificarCodigo(email, code) {
         console.log(`🔐 Verificando código para: ${email}`);
-        
         try {
-            const res = await requestJSON('POST', '/api/email/verify_code/', {
-                email: email,
-                code: code
-            });
-            
+            const res = await requestJSON('POST', '/api/email/verify_code/', { email: email, code: code });
             console.log('📡 Respuesta verificarCodigo:', res);
-            
             if (res.success) {
-                // Si la verificación es exitosa, buscar el perfil
                 const perfilResult = await this.buscarPerfilPorCorreo(email);
-                
                 if (perfilResult.success) {
-                    return {
-                        success: true,
-                        message: '¡Código verificado exitosamente!',
-                        tipo: perfilResult.tipo,
-                        id: perfilResult.id,
-                        data: perfilResult.data
-                    };
+                    return { success: true, message: '¡Código verificado exitosamente!', tipo: perfilResult.tipo, id: perfilResult.id, data: perfilResult.data };
                 } else {
-                    return {
-                        success: false,
-                        message: 'Código verificado pero no se encontró el perfil'
-                    };
+                    return { success: false, message: 'Código verificado pero no se encontró el perfil' };
                 }
             } else {
-                return {
-                    success: false,
-                    message: res.message || 'Código inválido'
-                };
+                return { success: false, message: res.message || 'Código inválido' };
             }
         } catch (error) {
             console.error('❌ Error en verificarCodigo:', error);
-            return {
-                success: false,
-                message: error.message || 'Error al verificar el código',
-                status: error.status,
-            };
+            return { success: false, message: error.message || 'Error al verificar el código', status: error.status };
         }
-    }
+    },
+
+    /* ---------- NUEVO: actualizar solo la foto del estudiante ---------- */
+    async updateEstudianteFoto(estudianteId, file) {
+        if (!estudianteId || !file) throw new Error('Se requiere estudianteId y un archivo de imagen');
+        const form = new FormData();
+        form.append('foto', file);
+        // Endpoint nuevo del backend: POST /api/estudiantes/<id>/foto/
+        const res = await requestMultipart('POST', `/api/estudiantes/${estudianteId}/foto/`, form);
+        return {
+            success: true,
+            message: res.message || 'Foto actualizada correctamente',
+            data: res.data,   // debería incluir { foto: '/media/estudiantes/xxx.jpg' }
+            status: res.status,
+        };
+    },
 };

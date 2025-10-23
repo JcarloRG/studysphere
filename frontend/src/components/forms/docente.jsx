@@ -17,9 +17,28 @@ const DocenteForm = () => {
     logros: ''
   });
 
+  // 📸 estado de imagen (igual que Estudiante)
+  const [foto, setFoto] = useState(null);
+  const [preview, setPreview] = useState(null);
+
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [messageType, setMessageType] = useState('');
+
+  const handleFotoChange = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!/^image\//.test(f.type)) {
+      alert('El archivo debe ser una imagen');
+      return;
+    }
+    if (f.size > 3 * 1024 * 1024) {
+      alert('La imagen no debe superar 3MB');
+      return;
+    }
+    setFoto(f);
+    setPreview(URL.createObjectURL(f));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,7 +46,6 @@ const DocenteForm = () => {
     setMessage('');
     setMessageType('');
 
-    // Validaciones básicas
     if (
       !formData.nombre_completo ||
       !formData.correo_institucional ||
@@ -40,7 +58,6 @@ const DocenteForm = () => {
       setIsLoading(false);
       return;
     }
-
     if (formData.password.length < 8) {
       setMessage('❌ La contraseña debe tener al menos 8 caracteres');
       setMessageType('error');
@@ -55,24 +72,27 @@ const DocenteForm = () => {
     }
 
     try {
-      console.log('🔄 Enviando datos de docente...', formData);
       const result = await apiService.createDocente(formData);
 
-      // ✅ Mensaje y redirección a verificación
+      // ⬆️ subir foto si hay
+      const docenteId = result?.data?.id;
+      if (docenteId && foto) {
+        try {
+          await apiService.uploadDocentePhoto(docenteId, foto);
+        } catch (e) {
+          console.warn('⚠️ No se pudo subir la foto del docente:', e.message);
+        }
+      }
+
       setMessage('✅ ¡Docente registrado exitosamente! Revisa tu correo para el código.');
       setMessageType('success');
 
       setTimeout(() => {
         navigate('/verificar-email', {
-          state: {
-            email: formData.correo_institucional,
-            tipo: 'docente',
-            id: result?.data?.id,
-          },
+          state: { email: formData.correo_institucional, tipo: 'docente', id: docenteId },
         });
-      }, 1000);
+      }, 900);
     } catch (error) {
-      console.error('❌ Error completo:', error);
       setMessage(`❌ Error al registrar docente: ${error.message}`);
       setMessageType('error');
     } finally {
@@ -89,7 +109,6 @@ const DocenteForm = () => {
 
   return (
     <div className="home-container">
-      {/* Fondo idéntico al homepage */}
       <div className="background-shapes">
         <div className="shape shape-1"></div>
         <div className="shape shape-2"></div>
@@ -97,7 +116,6 @@ const DocenteForm = () => {
         <div className="shape shape-4"></div>
       </div>
 
-      {/* Header idéntico al homepage */}
       <header className="premium-header">
         <div className="header-content">
           <div className="logo-section">
@@ -105,11 +123,7 @@ const DocenteForm = () => {
             <h1>StudySphere</h1>
           </div>
           <nav className="nav-actions">
-            <button 
-              className="nav-btn profile-nav-btn"
-              onClick={handleBack}
-              disabled={isLoading}
-            >
+            <button className="nav-btn profile-nav-btn" onClick={handleBack} disabled={isLoading}>
               <span className="btn-icon">🏠</span>
               <span>Volver al Inicio</span>
             </button>
@@ -117,7 +131,6 @@ const DocenteForm = () => {
         </div>
       </header>
 
-      {/* Contenido del formulario */}
       <div className="form-section">
         <div className="form-container-custom">
           <div className="form-card-custom">
@@ -130,17 +143,55 @@ const DocenteForm = () => {
               </p>
             </div>
 
-            {message && (
-              <div className={`message-custom ${messageType}`}>
-                {message}
-              </div>
-            )}
+            {message && <div className={`message-custom ${messageType}`}>{message}</div>}
 
             <form onSubmit={handleSubmit} className="estudiante-form-custom">
+              {/* 📸 Foto de perfil */}
               <div className="form-group-custom">
-                <label htmlFor="nombre_completo" className="required-custom">
-                  Nombre Completo
-                </label>
+                <label className="optional-custom">Foto de Perfil</label>
+
+                <div className="avatar-uploader">
+                  <div className="avatar-preview">
+                    {preview ? (
+                      <img src={preview} alt="Previsualización" />
+                    ) : (
+                      <div className="avatar-overlay">
+                        <div className="avatar-icon">📷</div>
+                        <div className="avatar-text">Selecciona una imagen</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="avatar-actions">
+                    <input
+                      id="foto"
+                      name="foto"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFotoChange}
+                      disabled={isLoading}
+                      className="file-input-hidden"
+                    />
+                    <label htmlFor="foto" className="upload-btn">
+                      {isLoading ? 'Procesando...' : 'Seleccionar archivo'}
+                    </label>
+                    {preview && (
+                      <button
+                        type="button"
+                        className="remove-btn"
+                        onClick={() => { setFoto(null); setPreview(null); }}
+                        disabled={isLoading}
+                      >
+                        Quitar
+                      </button>
+                    )}
+                    <p className="help-text">PNG/JPG/WebP • Máx. 3 MB</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-group-custom">
+                <label htmlFor="nombre_completo" className="required-custom">Nombre Completo</label>
                 <input
                   type="text"
                   id="nombre_completo"
@@ -156,9 +207,7 @@ const DocenteForm = () => {
 
               <div className="form-row-custom">
                 <div className="form-group-custom">
-                  <label htmlFor="correo_institucional" className="required-custom">
-                    Correo Institucional
-                  </label>
+                  <label htmlFor="correo_institucional" className="required-custom">Correo Institucional</label>
                   <input
                     type="email"
                     id="correo_institucional"
@@ -173,9 +222,7 @@ const DocenteForm = () => {
                 </div>
 
                 <div className="form-group-custom">
-                  <label htmlFor="carrera_egreso" className="required-custom">
-                    Carrera de Egreso
-                  </label>
+                  <label htmlFor="carrera_egreso" className="required-custom">Carrera de Egreso</label>
                   <input
                     type="text"
                     id="carrera_egreso"
@@ -190,12 +237,9 @@ const DocenteForm = () => {
                 </div>
               </div>
 
-              {/* 🔐 Contraseñas */}
               <div className="form-row-custom">
                 <div className="form-group-custom">
-                  <label htmlFor="password" className="required-custom">
-                    Contraseña
-                  </label>
+                  <label htmlFor="password" className="required-custom">Contraseña</label>
                   <input
                     type="password"
                     id="password"
@@ -210,9 +254,7 @@ const DocenteForm = () => {
                 </div>
 
                 <div className="form-group-custom">
-                  <label htmlFor="password2" className="required-custom">
-                    Confirmar Contraseña
-                  </label>
+                  <label htmlFor="password2" className="required-custom">Confirmar Contraseña</label>
                   <input
                     type="password"
                     id="password2"
@@ -229,9 +271,7 @@ const DocenteForm = () => {
 
               <div className="form-row-custom">
                 <div className="form-group-custom">
-                  <label htmlFor="carreras_imparte" className="optional-custom">
-                    Carreras que Imparte
-                  </label>
+                  <label htmlFor="carreras_imparte" className="optional-custom">Carreras que Imparte</label>
                   <input
                     type="text"
                     id="carreras_imparte"
@@ -245,9 +285,7 @@ const DocenteForm = () => {
                 </div>
 
                 <div className="form-group-custom">
-                  <label htmlFor="grado_academico" className="optional-custom">
-                    Grado Académico
-                  </label>
+                  <label htmlFor="grado_academico" className="optional-custom">Grado Académico</label>
                   <select
                     id="grado_academico"
                     name="grado_academico"
@@ -266,74 +304,46 @@ const DocenteForm = () => {
               </div>
 
               <div className="form-group-custom">
-                <label htmlFor="habilidades" className="optional-custom">
-                  Habilidades y Especialidades
-                </label>
+                <label htmlFor="habilidades" className="optional-custom">Habilidades y Especialidades</label>
                 <textarea
                   id="habilidades"
                   name="habilidades"
                   value={formData.habilidades}
                   onChange={handleChange}
                   rows="3"
-                  placeholder="Ej: Inteligencia Artificial, Base de Datos, Metodologías Ágiles, Investigación..."
+                  placeholder="Ej: IA, Bases de Datos, Investigación..."
                   disabled={isLoading}
                   className="form-input-custom"
                 />
-                <div className="help-text-custom">
-                  Áreas en las que tienes experiencia y especialización
-                </div>
               </div>
 
               <div className="form-group-custom">
-                <label htmlFor="logros" className="optional-custom">
-                  Logros Académicos y Profesionales
-                </label>
+                <label htmlFor="logros" className="optional-custom">Logros Académicos y Profesionales</label>
                 <textarea
                   id="logros"
                   name="logros"
                   value={formData.logros}
                   onChange={handleChange}
                   rows="3"
-                  placeholder="Ej: Publicaciones, Proyectos de investigación, Reconocimientos, Certificaciones..."
+                  placeholder="Ej: Publicaciones, Proyectos de investigación, Certificaciones..."
                   disabled={isLoading}
                   className="form-input-custom"
                 />
-                <div className="help-text-custom">
-                  Logros destacados en tu carrera académica y profesional
-                </div>
               </div>
 
               <div className="form-actions-custom">
-                <button 
-                  type="submit" 
-                  className={`submit-btn-custom ${isLoading ? 'loading' : ''}`} 
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <span className="spinner-custom"></span>
-                      Registrando...
-                    </>
-                  ) : (
-                    '📚 Registrar Docente'
-                  )}
+                <button type="submit" className={`submit-btn-custom ${isLoading ? 'loading' : ''}`} disabled={isLoading}>
+                  {isLoading ? (<><span className="spinner-custom"></span> Registrando...</>) : '📚 Registrar Docente'}
                 </button>
 
-                <button 
-                  type="button" 
-                  className="back-btn-custom" 
-                  onClick={handleBack} 
-                  disabled={isLoading}
-                >
+                <button type="button" className="back-btn-custom" onClick={handleBack} disabled={isLoading}>
                   ← Volver al Inicio
                 </button>
               </div>
             </form>
 
             <div className="form-footer-custom">
-              <p className="required-note-custom">
-                * Campos obligatorios
-              </p>
+              <p className="required-note-custom">* Campos obligatorios</p>
             </div>
           </div>
         </div>

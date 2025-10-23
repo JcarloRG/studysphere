@@ -2,8 +2,10 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.mail import send_mail
+from django.core.files.storage import FileSystemStorage
 from django.conf import settings
 
+import os
 import json
 import random
 import string
@@ -18,7 +20,9 @@ import mysql.connector
 def health(request):
     return json_ok({'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')}, "OK")
 
+
 # ===================== Helpers =====================
+
 def db_conn():
     return mysql.connector.connect(
         host='127.0.0.1',
@@ -50,7 +54,6 @@ def allow_options(request):
     return None
 
 def generate_code(n=6):
-    # Código 6 dígitos
     return ''.join(random.choices(string.digits, k=n))
 
 def send_verification_email(to_email, code):
@@ -84,6 +87,7 @@ def send_verification_email(to_email, code):
         print("❌ Error enviando email:", str(e))
         return False
 
+
 # ===================== LOGIN =====================
 
 @csrf_exempt
@@ -107,16 +111,13 @@ def login_user(request):
         cursor = conn.cursor(dictionary=True)
         user_info = None
 
-        # Tablas a revisar y su tipo
         tablas = {
             'estudiantes': 'estudiante',
             'docentes': 'docente',
             'egresados': 'egresado'
         }
 
-        # 1. Buscar en cada tabla
         for tabla, tipo in tablas.items():
-            # Consulta SQL para verificar correo y contraseña (usando SHA2)
             sql = f"""
             SELECT id, nombre_completo, correo_institucional, email_verified
             FROM {tabla}
@@ -134,7 +135,7 @@ def login_user(request):
                     'tipo': tipo,
                     'email_verified': bool(row['email_verified'])
                 }
-                break # Usuario encontrado, salir del bucle
+                break
 
         cursor.close()
         conn.close()
@@ -152,6 +153,7 @@ def login_user(request):
     except Exception as e:
         print("❌ ERROR general en login:", str(e))
         return json_err(f'Error interno: {str(e)}', 500)
+
 
 # ===================== ESTUDIANTES =====================
 
@@ -198,7 +200,6 @@ def registrar_estudiante(request):
         cursor.execute("SELECT LAST_INSERT_ID()")
         estudiante_id = cursor.fetchone()[0]
 
-        # Generar y guardar código + enviar email
         code = generate_code(6)
         now = datetime.now()
         exp = now + timedelta(minutes=15)
@@ -221,6 +222,7 @@ def registrar_estudiante(request):
     except Exception as e:
         print("❌ ERROR general:", str(e))
         return json_err(f'Error interno: {str(e)}', 500)
+
 
 # ===================== DOCENTES =====================
 
@@ -288,6 +290,7 @@ def registrar_docente(request):
     except Exception as e:
         print("❌ ERROR general:", str(e))
         return json_err(f'Error interno: {str(e)}', 500)
+
 
 # ===================== EGRESADOS =====================
 
@@ -364,6 +367,7 @@ def registrar_egresado(request):
         print("❌ ERROR general:", str(e))
         return json_err(f'Error interno: {str(e)}', 500)
 
+
 # ===================== LISTADOS =====================
 
 def listar_estudiantes(request):
@@ -374,7 +378,7 @@ def listar_estudiantes(request):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, numero_control, carrera_actual, 
-                    otra_carrera, semestre, habilidades, area_interes, fecha_registro
+                   otra_carrera, semestre, habilidades, area_interes, fecha_registro, foto
             FROM estudiantes ORDER BY id DESC
         """)
         rows = cursor.fetchall()
@@ -391,7 +395,7 @@ def listar_docentes(request):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, carrera_egreso, 
-                    carreras_imparte, grado_academico, habilidades, logros, fecha_registro
+                   carreras_imparte, grado_academico, habilidades, logros, fecha_registro
             FROM docentes ORDER BY id DESC
         """)
         rows = cursor.fetchall()
@@ -408,8 +412,8 @@ def listar_egresados(request):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, carrera_egreso, anio_egreso,
-                    ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, 
-                    competencias, fecha_registro
+                   ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, 
+                   competencias, fecha_registro
             FROM egresados ORDER BY id DESC
         """)
         rows = cursor.fetchall()
@@ -417,6 +421,7 @@ def listar_egresados(request):
         return json_ok(rows)
     except Exception as e:
         return json_err(str(e), 500)
+
 
 # ===================== PERFILES =====================
 
@@ -431,7 +436,7 @@ def perfil_estudiante(request, estudiante_id):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, numero_control, carrera_actual,
-                    otra_carrera, semestre, habilidades, area_interes, fecha_registro
+                   otra_carrera, semestre, habilidades, area_interes, fecha_registro, foto
             FROM estudiantes WHERE id=%s
         """, (estudiante_id,))
         row = cursor.fetchone()
@@ -453,7 +458,7 @@ def perfil_docente(request, docente_id):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, carrera_egreso,
-                    carreras_imparte, grado_academico, habilidades, logros, fecha_registro
+                   carreras_imparte, grado_academico, habilidades, logros, fecha_registro
             FROM docentes WHERE id=%s
         """, (docente_id,))
         row = cursor.fetchone()
@@ -475,8 +480,8 @@ def perfil_egresado(request, egresado_id):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, carrera_egreso, anio_egreso,
-                    ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, 
-                    competencias, fecha_registro
+                   ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, 
+                   competencias, fecha_registro
             FROM egresados WHERE id=%s
         """, (egresado_id,))
         row = cursor.fetchone()
@@ -486,6 +491,61 @@ def perfil_egresado(request, egresado_id):
         return json_ok(row, None, 200)
     except Exception as e:
         return json_err(str(e), 500)
+
+
+# ===================== FOTO ESTUDIANTE =====================
+
+def _estudiante_media_storage():
+    """
+    Crea un FileSystemStorage apuntando a /media/estudiantes
+    """
+    base_dir = os.path.join(settings.MEDIA_ROOT, 'estudiantes')
+    base_url = settings.MEDIA_URL.rstrip('/') + '/estudiantes/'
+    os.makedirs(base_dir, exist_ok=True)
+    return FileSystemStorage(location=base_dir, base_url=base_url)
+
+@csrf_exempt
+def actualizar_foto_estudiante(request, estudiante_id):
+    """
+    POST multipart/form-data con campo 'foto'
+    Guarda la imagen en /media/estudiantes/<archivo> y actualiza estudiantes.foto
+    Devuelve { foto: "/media/estudiantes/..." }
+    """
+    opt = allow_options(request)
+    if opt: return opt
+
+    if request.method != 'POST':
+        return json_err('Método no permitido. Usa POST.', 405)
+
+    try:
+        if 'foto' not in request.FILES:
+            return json_err('Archivo "foto" no enviado', 400)
+
+        foto = request.FILES['foto']
+        if foto.size > 3 * 1024 * 1024:
+            return json_err('La imagen no debe superar 3MB.', 400)
+
+        # Guardar archivo
+        fs = _estudiante_media_storage()
+        # nombre único
+        base, ext = os.path.splitext(foto.name)
+        safe_name = f"est_{estudiante_id}_{int(datetime.now().timestamp())}{ext.lower()}"
+        filename = fs.save(safe_name, foto)
+        rel_url = fs.url(filename)  # p.ej. "/media/estudiantes/est_1_...jpg"
+
+        # Actualizar BD
+        conn = db_conn()
+        cur = conn.cursor()
+        cur.execute("UPDATE estudiantes SET foto=%s WHERE id=%s", (rel_url, estudiante_id))
+        conn.commit()
+        cur.close(); conn.close()
+
+        return json_ok({'foto': rel_url}, 'Foto actualizada', 200)
+
+    except Exception as e:
+        print("❌ actualizar_foto_estudiante error:", str(e))
+        return json_err(f'Error interno: {str(e)}', 500)
+
 
 # ===================== VERIFICACIÓN DE EMAIL =====================
 
@@ -563,7 +623,6 @@ def verify_email_code(request):
         now = datetime.now()
 
         conn = db_conn()
-        # Trae el ÚLTIMO código que coincida por email+code
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT * FROM email_verifications
@@ -577,7 +636,6 @@ def verify_email_code(request):
             cursor.close(); conn.close()
             return json_err('Código inválido.', 400)
 
-        # Revisiones claras
         if int(row.get('is_used', 0)) == 1:
             cursor.close(); conn.close()
             return json_err('El código ya fue utilizado. Solicita uno nuevo.', 400)
@@ -586,19 +644,16 @@ def verify_email_code(request):
             cursor.close(); conn.close()
             return json_err('El código ha expirado. Solicita uno nuevo.', 400)
 
-        # Marcar como usado
         cursor2 = conn.cursor()
         cursor2.execute("UPDATE email_verifications SET is_used=1, verified=1 WHERE id=%s", (row['id'],))
         conn.commit()
         cursor2.close()
 
-        # Actualizar email_verified en la tabla del perfil si viene la info
         perfil_id = row.get('perfil_id')
         tipo = (row.get('tipo') or '').strip().lower()
         if perfil_id and tipo in ('estudiante', 'docente', 'egresado'):
             tabla = 'estudiantes' if tipo == 'estudiante' else ('docentes' if tipo == 'docente' else 'egresados')
             cursor3 = conn.cursor()
-            # Usar email_verified que es el nombre correcto en tu BD
             cursor3.execute(f"UPDATE {tabla} SET email_verified=1, verified_at=%s WHERE id=%s", (now, perfil_id))
             conn.commit()
             cursor3.close()

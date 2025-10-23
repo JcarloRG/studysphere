@@ -5,6 +5,7 @@ import './FormStyles.css';
 
 const EstudianteForm = () => {
   const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     nombre_completo: '',
     correo_institucional: '',
@@ -15,12 +16,36 @@ const EstudianteForm = () => {
     otra_carrera: 'No',
     semestre: '',
     habilidades: '',
-    area_interes: ''
+    area_interes: '',
   });
 
+  // 📸 Imagen
+  const [foto, setFoto] = useState(null);
+  const [preview, setPreview] = useState(null);
+
+  // UI
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [messageType, setMessageType] = useState('');
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      alert('La imagen no debe superar 3 MB.');
+      e.target.value = '';
+      return;
+    }
+    setFoto(file);
+    setPreview(URL.createObjectURL(file));
+  };
+
+  const handleBack = () => navigate('/');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,7 +53,7 @@ const EstudianteForm = () => {
     setMessage('');
     setMessageType('');
 
-    // ✅ Validaciones
+    // Validaciones
     if (
       !formData.nombre_completo ||
       !formData.correo_institucional ||
@@ -42,14 +67,12 @@ const EstudianteForm = () => {
       setIsLoading(false);
       return;
     }
-
     if (formData.password.length < 8) {
       setMessage('❌ La contraseña debe tener al menos 8 caracteres.');
       setMessageType('error');
       setIsLoading(false);
       return;
     }
-
     if (formData.password !== formData.password2) {
       setMessage('❌ Las contraseñas no coinciden.');
       setMessageType('error');
@@ -58,14 +81,16 @@ const EstudianteForm = () => {
     }
 
     try {
-      console.log('🔄 Enviando datos de estudiante...', formData);
-      const result = await apiService.createEstudiante(formData);
+      // Construir FormData (para incluir foto si existe)
+      const dataToSend = new FormData();
+      Object.entries(formData).forEach(([k, v]) => dataToSend.append(k, v));
+      if (foto) dataToSend.append('foto', foto);
 
-      // ✅ Mensaje informativo
+      const result = await apiService.createEstudiante(dataToSend);
+
       setMessage('✅ ¡Estudiante registrado exitosamente! Revisa tu correo para el código.');
       setMessageType('success');
 
-      // ✅ Redirigir a pantalla de verificación
       setTimeout(() => {
         navigate('/verificar-email', {
           state: {
@@ -74,7 +99,7 @@ const EstudianteForm = () => {
             id: result.data?.id,
           },
         });
-      }, 1000);
+      }, 900);
     } catch (error) {
       console.error('❌ Error completo:', error);
       setMessage(`❌ Error al registrar estudiante: ${error.message}`);
@@ -84,16 +109,9 @@ const EstudianteForm = () => {
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleBack = () => navigate('/');
-
   return (
     <div className="home-container">
-      {/* Fondo idéntico al homepage */}
+      {/* Fondo */}
       <div className="background-shapes">
         <div className="shape shape-1"></div>
         <div className="shape shape-2"></div>
@@ -101,7 +119,7 @@ const EstudianteForm = () => {
         <div className="shape shape-4"></div>
       </div>
 
-      {/* Header idéntico al homepage */}
+      {/* Header */}
       <header className="premium-header">
         <div className="header-content">
           <div className="logo-section">
@@ -109,7 +127,7 @@ const EstudianteForm = () => {
             <h1>StudySphere</h1>
           </div>
           <nav className="nav-actions">
-            <button 
+            <button
               className="nav-btn profile-nav-btn"
               onClick={handleBack}
               disabled={isLoading}
@@ -133,13 +151,55 @@ const EstudianteForm = () => {
               </p>
             </div>
 
-            {message && (
-              <div className={`message-custom ${messageType}`}>
-                {message}
-              </div>
-            )}
+            {message && <div className={`message-custom ${messageType}`}>{message}</div>}
 
-            <form onSubmit={handleSubmit} className="estudiante-form-custom">
+            <form onSubmit={handleSubmit} className="estudiante-form-custom" encType="multipart/form-data">
+
+              {/* 📸 Foto de perfil */}
+              <div className="form-group-custom">
+                <label className="optional-custom">Foto de Perfil</label>
+
+                <div className="avatar-uploader">
+                  <div className="avatar-preview">
+                    {preview ? (
+                      <img src={preview} alt="Previsualización" />
+                    ) : (
+                      <div className="avatar-overlay">
+                        <div className="avatar-icon">📷</div>
+                        <div className="avatar-text">Selecciona una imagen</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="avatar-actions">
+                    <input
+                      id="foto"
+                      name="foto"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFotoChange}
+                      disabled={isLoading}
+                      className="file-input-hidden"
+                    />
+                    <label htmlFor="foto" className="upload-btn">
+                      {isLoading ? 'Procesando...' : 'Seleccionar archivo'}
+                    </label>
+                    {preview && (
+                      <button
+                        type="button"
+                        className="remove-btn"
+                        onClick={() => { setFoto(null); setPreview(null); }}
+                        disabled={isLoading}
+                      >
+                        Quitar
+                      </button>
+                    )}
+                    <p className="help-text">PNG/JPG/WebP • Máx. 3 MB</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Nombre */}
               <div className="form-group-custom">
                 <label htmlFor="nombre_completo" className="required-custom">
                   Nombre Completo
@@ -158,6 +218,7 @@ const EstudianteForm = () => {
               </div>
 
               <div className="form-row-custom">
+                {/* Correo */}
                 <div className="form-group-custom">
                   <label htmlFor="correo_institucional" className="required-custom">
                     Correo Institucional
@@ -175,6 +236,7 @@ const EstudianteForm = () => {
                   />
                 </div>
 
+                {/* Número de control */}
                 <div className="form-group-custom">
                   <label htmlFor="numero_control" className="required-custom">
                     Número de Control
@@ -193,12 +255,10 @@ const EstudianteForm = () => {
                 </div>
               </div>
 
-              {/* 🔐 Contraseñas */}
+              {/* Contraseñas */}
               <div className="form-row-custom">
                 <div className="form-group-custom">
-                  <label htmlFor="password" className="required-custom">
-                    Contraseña
-                  </label>
+                  <label htmlFor="password" className="required-custom">Contraseña</label>
                   <input
                     type="password"
                     id="password"
@@ -213,9 +273,7 @@ const EstudianteForm = () => {
                 </div>
 
                 <div className="form-group-custom">
-                  <label htmlFor="password2" className="required-custom">
-                    Confirmar Contraseña
-                  </label>
+                  <label htmlFor="password2" className="required-custom">Confirmar Contraseña</label>
                   <input
                     type="password"
                     id="password2"
@@ -230,11 +288,10 @@ const EstudianteForm = () => {
                 </div>
               </div>
 
+              {/* Carrera y semestre */}
               <div className="form-row-custom">
                 <div className="form-group-custom">
-                  <label htmlFor="carrera_actual" className="required-custom">
-                    Carrera Actual
-                  </label>
+                  <label htmlFor="carrera_actual" className="required-custom">Carrera Actual</label>
                   <input
                     type="text"
                     id="carrera_actual"
@@ -249,9 +306,7 @@ const EstudianteForm = () => {
                 </div>
 
                 <div className="form-group-custom">
-                  <label htmlFor="semestre" className="optional-custom">
-                    Semestre
-                  </label>
+                  <label htmlFor="semestre" className="optional-custom">Semestre</label>
                   <input
                     type="text"
                     id="semestre"
@@ -265,10 +320,9 @@ const EstudianteForm = () => {
                 </div>
               </div>
 
+              {/* Otra carrera */}
               <div className="form-group-custom">
-                <label htmlFor="otra_carrera" className="optional-custom">
-                  ¿Cursas otra carrera?
-                </label>
+                <label htmlFor="otra_carrera" className="optional-custom">¿Cursas otra carrera?</label>
                 <select
                   id="otra_carrera"
                   name="otra_carrera"
@@ -282,10 +336,9 @@ const EstudianteForm = () => {
                 </select>
               </div>
 
+              {/* Habilidades */}
               <div className="form-group-custom">
-                <label htmlFor="habilidades" className="optional-custom">
-                  Habilidades Principales
-                </label>
+                <label htmlFor="habilidades" className="optional-custom">Habilidades Principales</label>
                 <textarea
                   id="habilidades"
                   name="habilidades"
@@ -298,10 +351,9 @@ const EstudianteForm = () => {
                 />
               </div>
 
+              {/* Intereses */}
               <div className="form-group-custom">
-                <label htmlFor="area_interes" className="optional-custom">
-                  Áreas de Interés
-                </label>
+                <label htmlFor="area_interes" className="optional-custom">Áreas de Interés</label>
                 <textarea
                   id="area_interes"
                   name="area_interes"
@@ -314,26 +366,20 @@ const EstudianteForm = () => {
                 />
               </div>
 
+              {/* Acciones */}
               <div className="form-actions-custom">
-                <button 
-                  type="submit" 
-                  className={`submit-btn-custom ${isLoading ? 'loading' : ''}`} 
+                <button
+                  type="submit"
+                  className={`submit-btn-custom ${isLoading ? 'loading' : ''}`}
                   disabled={isLoading}
                 >
-                  {isLoading ? (
-                    <>
-                      <span className="spinner-custom"></span> 
-                      Registrando...
-                    </>
-                  ) : (
-                    '🎓 Registrar Estudiante'
-                  )}
+                  {isLoading ? (<><span className="spinner-custom"></span> Registrando...</>) : '🎓 Registrar Estudiante'}
                 </button>
 
-                <button 
-                  type="button" 
-                  className="back-btn-custom" 
-                  onClick={handleBack} 
+                <button
+                  type="button"
+                  className="back-btn-custom"
+                  onClick={handleBack}
                   disabled={isLoading}
                 >
                   ← Volver al Inicio
@@ -342,9 +388,7 @@ const EstudianteForm = () => {
             </form>
 
             <div className="form-footer-custom">
-              <p className="required-note-custom">
-                * Campos obligatorios
-              </p>
+              <p className="required-note-custom">* Campos obligatorios</p>
             </div>
           </div>
         </div>

@@ -1,30 +1,41 @@
 # apps/users/urls.py
 from django.urls import path
-from . import views
+from .views import (
+    health, login_user,
+    registrar_estudiante, registrar_docente, registrar_egresado,
+    listar_estudiantes, listar_docentes, listar_egresados,
+    perfil_estudiante, perfil_docente, perfil_egresado,
+    request_email_code, verify_email_code,
+    actualizar_foto_estudiante,
+)
 
 urlpatterns = [
     # Health
-    path('api/health/', views.health, name='health'),
+    path('api/health/', health),
 
-    # LOGIN (NUEVA RUTA)
-    path('api/login/', views.login_user, name='login_user'),
+    # Auth / Login
+    path('api/login/', login_user),
 
-    # Registro
-    path('api/estudiante/registrar/', views.registrar_estudiante, name='registrar_estudiante'),
-    path('api/docente/registrar/', views.registrar_docente, name='registrar_docente'),
-    path('api/egresado/registrar/', views.registrar_egresado, name='registrar_egresado'),
+    # ====== REGISTROS ======
+    # OJO: coinciden con api.js
+    path('api/estudiante/registrar/', registrar_estudiante),
+    path('api/docente/registrar/', registrar_docente),
+    path('api/egresado/registrar/', registrar_egresado),
 
-    # Listados
-    path('api/estudiantes/', views.listar_estudiantes, name='listar_estudiantes'),
-    path('api/docentes/', views.listar_docentes, name='listar_docentes'),
-    path('api/egresados/', views.listar_egresados, name='listar_egresados'),
+    # ====== LISTADOS ======
+    path('api/estudiantes/', listar_estudiantes),
+    path('api/docentes/', listar_docentes),
+    path('api/egresados/', listar_egresados),
 
-    # Perfiles
-    path('api/estudiante/<int:estudiante_id>/', views.perfil_estudiante, name='perfil_estudiante'),
-    path('api/docente/<int:docente_id>/', views.perfil_docente, name='perfil_docente'),
-    path('api/egresado/<int:egresado_id>/', views.perfil_egresado, name='perfil_egresado'),
+    # ====== PERFILES (detalle) ======
+    path('api/estudiante/<int:estudiante_id>/', perfil_estudiante),
+    path('api/docente/<int:docente_id>/', perfil_docente),
+    path('api/egresado/<int:egresado_id>/', perfil_egresado),
 
-    # Verificación de email
-    path('api/email/request_code/', views.request_email_code, name='request_email_code'),
-    path('api/email/verify_code/', views.verify_email_code, name='verify_email_code'),
+    # ====== EMAIL ======
+    path('api/email/request_code/', request_email_code),
+    path('api/email/verify_code/', verify_email_code),
+
+    # ====== FOTO (estudiante) ======
+    path('api/estudiantes/<int:estudiante_id>/foto/', actualizar_foto_estudiante),
 ]

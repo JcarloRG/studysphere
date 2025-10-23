@@ -1333,3 +1333,28 @@
         width: 200px;
     }
 }
+/* Avatares */
+.avatar {
+  width: 44px; height: 44px; border-radius: 50%;
+  object-fit: cover; display: block;
+  border: 2px solid rgba(255,255,255,.15);
+  background: rgba(255,255,255,.06);
+}
+.avatar-sm { width: 44px; height: 44px; }
+.avatar-md { width: 72px; height: 72px; }
+.avatar-xl { width: 120px; height: 120px; }
+
+.matching-avatar-wrap {
+  display: flex; justify-content: center; margin-bottom: 10px;
+}
+
+/* Alineación para cabeceras con avatar */
+.member-header, .profile-header {
+  display: flex; align-items: center; gap: 12px;
+}
+
+/* Tarjetas destacadas con avatar */
+.featured-card {
+  display: grid; grid-template-columns: 72px 1fr auto;
+  gap: 14px; align-items: center;
+}
