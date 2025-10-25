@@ -686,3 +686,46 @@ body {
         font-size: 1.8rem;
     }
 }
+
+/* Logo styles */
+.site-logo {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+}
+
+/* Modal centrado */
+.centered-modal-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.centered-premium-modal {
+    margin: auto;
+}
+
+/* Botón crear cuenta */
+.create-account-section {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.create-account-text {
+    margin-bottom: 10px;
+    color: #666;
+}
+
+.create-account-btn {
+    background: transparent;
+    color: #007bff;
+    border: 1px solid #007bff;
+    width: 100%;
+}
+
+.create-account-btn:hover {
+    background: #007bff;
+    color: white;
+}

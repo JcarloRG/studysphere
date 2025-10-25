@@ -10,14 +10,16 @@ const Comunidad = () => {
   const [docentes, setDocentes] = useState([]);
   const [egresados, setEgresados] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [featuredProfiles, setFeaturedProfiles] = useState([]);
 
-  // MATCHING
+  // COLABORACIÓN
   const [perfilesRecomendados, setPerfilesRecomendados] = useState([]);
   const [perfilActualIndex, setPerfilActualIndex] = useState(0);
-  const [matches, setMatches] = useState([]);
-  const [viewMode, setViewMode] = useState('lista'); // 'matching' | 'lista'
+  const [colaboraciones, setColaboraciones] = useState([]);
+  const [viewMode, setViewMode] = useState('lista'); // 'descubrir' | 'lista'
   const [error, setError] = useState('');
+  const [mensajeExito, setMensajeExito] = useState('');
+  const [showCollaborationModal, setShowCollaborationModal] = useState(false);
+  const [lastCollaboratedUser, setLastCollaboratedUser] = useState(null);
 
   const filters = [
     { id: 'todos', label: '👥 Todos', emoji: '👥' },
@@ -67,10 +69,8 @@ const Comunidad = () => {
 
       if (todosLosPerfiles.length) {
         const shuffled = [...todosLosPerfiles].sort(() => 0.5 - Math.random());
-        setFeaturedProfiles(shuffled.slice(0, Math.min(3, shuffled.length)));
         setPerfilesRecomendados(shuffled);
       } else {
-        setFeaturedProfiles([]);
         setPerfilesRecomendados([]);
       }
     } catch (err) {
@@ -80,14 +80,25 @@ const Comunidad = () => {
     }
   };
 
-  // MATCHING
-  const handleLike = async (perfil) => {
+  // COLABORACIÓN
+  const handleColaborar = async (perfil) => {
     try {
-      const result = await apiService.enviarSolicitudMatch(perfil.id, perfil.tipo);
-      if (result.success) setMatches((prev) => [...prev, perfil]);
-    } catch {}
-    siguientePerfil();
+      // Simular envío de solicitud
+      setLastCollaboratedUser(perfil);
+      setShowCollaborationModal(true);
+      
+      // Aquí iría la llamada real a la API
+      // const result = await apiService.enviarSolicitudColaboracion(perfil.id, perfil.tipo);
+      
+      setColaboraciones((prev) => [...prev, perfil]);
+    } catch (error) {
+      setError('Error al enviar solicitud de colaboración');
+    }
+    if (viewMode === 'descubrir') {
+      siguientePerfil();
+    }
   };
+
   const handlePass = () => siguientePerfil();
   const siguientePerfil = () =>
     setPerfilActualIndex((prev) => (prev >= perfilesRecomendados.length - 1 ? 0 : prev + 1));
@@ -133,13 +144,17 @@ const Comunidad = () => {
       <header className="premium-header">
         <div className="header-content">
           <div className="logo-section">
-            <div className="logo-icon">🚀</div>
+            <img 
+              src="/logo192.png" 
+              alt="StudySphere Logo" 
+              className="site-logo"
+            />
             <h1>StudySphere</h1>
           </div>
           <nav className="nav-actions">
-            <Link to="/" className="nav-btn profile-nav-btn">
-              <span className="btn-icon">🏠</span>
-              <span>Volver al Inicio</span>
+            <Link to="/mi-perfil" className="nav-btn profile-nav-btn">
+              <span className="btn-icon">👤</span>
+              <span>Mi Perfil</span>
             </Link>
           </nav>
         </div>
@@ -158,8 +173,8 @@ const Comunidad = () => {
             </div>
 
             <div className="view-mode-selector">
-              <button className={`mode-btn ${viewMode === 'matching' ? 'active' : ''}`} onClick={() => setViewMode('matching')}>
-                💖 Descubrir
+              <button className={`mode-btn ${viewMode === 'descubrir' ? 'active' : ''}`} onClick={() => setViewMode('descubrir')}>
+                🔍 Descubrir
               </button>
               <button className={`mode-btn ${viewMode === 'lista' ? 'active' : ''}`} onClick={() => setViewMode('lista')}>
                 👥 Ver Todos
@@ -189,15 +204,23 @@ const Comunidad = () => {
                 </div>
               </div>
               <div className="stat-card">
-                <div className="stat-icon">💖</div>
+                <div className="stat-icon">🤝</div>
                 <div className="stat-info">
-                  <span className="stat-number">{matches.length}</span>
-                  <span className="stat-label">Matches</span>
+                  <span className="stat-number">{colaboraciones.length}</span>
+                  <span className="stat-label">Colaboraciones</span>
                 </div>
               </div>
             </div>
           </div>
         </section>
+
+        {/* Mensaje de éxito */}
+        {mensajeExito && (
+          <div className="success-message">
+            <span className="success-icon">✅</span>
+            {mensajeExito}
+          </div>
+        )}
 
         {/* Error */}
         {error && (
@@ -208,16 +231,46 @@ const Comunidad = () => {
           </div>
         )}
 
-        {/* MATCHING */}
-        {viewMode === 'matching' && (
+        {/* Modal de Colaboración Exitosa */}
+        {showCollaborationModal && (
+          <div className="modal-overlay">
+            <div className="collaboration-modal">
+              <div className="modal-header">
+                <h3>🎉 ¡Colaboración Exitosa!</h3>
+                <button 
+                  className="close-modal-btn"
+                  onClick={() => setShowCollaborationModal(false)}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="modal-content">
+                <div className="success-icon-large">🤝</div>
+                <p>Tu solicitud de colaboración ha sido enviada correctamente a <strong>{lastCollaboratedUser?.nombre_completo}</strong></p>
+                <p className="modal-subtext">Te notificaremos cuando respondan a tu solicitud</p>
+              </div>
+              <div className="modal-actions">
+                <button 
+                  className="modal-close-btn"
+                  onClick={() => setShowCollaborationModal(false)}
+                >
+                  Continuar Explorando
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODO DESCUBRIR */}
+        {viewMode === 'descubrir' && (
           <section className="matching-section">
             <div className="section-header">
-              <h2>💖 Descubre Colaboradores</h2>
-              <p>Desliza para encontrar personas con intereses similares</p>
+              <h2>🔍 Descubre Colaboradores</h2>
+              <p>Encuentra personas con intereses académicos similares</p>
             </div>
 
             {loading ? (
-              <div className="loading-section"><div className="loading-spinner"></div><p>Buscando colaboradores increíbles...</p></div>
+              <div className="loading-section"><div className="loading-spinner"></div><p>Buscando colaboradores académicos...</p></div>
             ) : perfilesRecomendados.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-icon">🔍</div>
@@ -230,7 +283,7 @@ const Comunidad = () => {
                 <div className="matching-card">
                   <div className="compatibility-badge">
                     <span className="compatibility-score">{Math.floor(Math.random() * 30) + 70}%</span>
-                    <span>compatibilidad</span>
+                    <span>compatibilidad académica</span>
                   </div>
 
                   {/* avatar grande */}
@@ -275,35 +328,16 @@ const Comunidad = () => {
 
                   {/* Acciones */}
                   <div className="matching-actions">
-                    <button className="pass-btn" onClick={handlePass}><span className="action-icon">✕</span>Pass</button>
-                    <button className="like-btn" onClick={() => handleLike(perfilActual)}><span className="action-icon">💖</span>Like</button>
+                    <button className="pass-btn" onClick={handlePass}><span className="action-icon">✕</span>Pasar</button>
+                    <button className="like-btn" onClick={() => handleColaborar(perfilActual)}><span className="action-icon">🤝</span>Colaborar</button>
                   </div>
                 </div>
               </div>
             ) : null}
-
-            {matches.length > 0 && (
-              <div className="matches-preview">
-                <h4>Tus Matches Recientes ({matches.length})</h4>
-                <div className="matches-mini-grid">
-                  {matches.slice(-3).map((m, i) => (
-                    <div key={i} className="match-mini-card">
-                      <img className="avatar avatar-sm" src={getAvatarUrl(m)} alt="Mini avatar" />
-                      <div className="match-mini-info">
-                        <span className="match-mini-name">{m.nombre_completo}</span>
-                        <span className="match-mini-role">
-                          {m.tipo === 'estudiante' ? 'Estudiante' : m.tipo === 'docente' ? 'Docente' : 'Egresado'}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </section>
         )}
 
-        {/* LISTA */}
+        {/* MODO LISTA */}
         {viewMode === 'lista' && (
           <>
             {/* Filtros */}
@@ -330,39 +364,6 @@ const Comunidad = () => {
                 </div>
               </div>
             </section>
-
-            {/* Destacados */}
-            {featuredProfiles.length > 0 && (
-              <section className="featured-section">
-                <div className="section-header">
-                  <h2>⭐ Perfiles Destacados</h2>
-                  <p>Conoce a algunos miembros de nuestra comunidad</p>
-                </div>
-                <div className="featured-grid">
-                  {featuredProfiles.map((p, i) => (
-                    <div key={`featured-${p.id || i}`} className="featured-card">
-                      <img className="avatar avatar-md" src={getAvatarUrl(p)} alt="Avatar" />
-                      <div className="profile-content">
-                        <h3>{p.nombre_completo || 'Nombre no disponible'}</h3>
-                        <p className="profile-role">
-                          {p.tipo === 'estudiante' ? 'Estudiante' : p.tipo === 'docente' ? 'Docente' : 'Egresado'}
-                        </p>
-                        <p className="profile-email">{p.correo_institucional || 'Correo no disponible'}</p>
-                        {p.habilidades && (
-                          <div className="profile-skills">
-                            <span>{p.habilidades.split(',').slice(0, 2).join(', ')}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="featured-actions">
-                        <Link to={`/perfil/${p.tipo}/${p.id}`} className="view-profile-btn">Ver Perfil →</Link>
-                        <button className="match-btn" onClick={() => handleLike(p)}>💫 Conectar</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
 
             {/* Miembros */}
             <section className="members-section">
@@ -412,7 +413,7 @@ const Comunidad = () => {
                       <div className="member-actions">
                         <Link to={`/perfil/${p.tipo}/${p.id}`} className="profile-link">Ver Perfil Completo</Link>
                         <a href={`mailto:${p.correo_institucional}`} className="contact-btn">✉️ Contactar</a>
-                        <button className="match-btn" onClick={() => handleLike(p)}>💫 Conectar</button>
+                        <button className="match-btn" onClick={() => handleColaborar(p)}>🤝 Colaborar</button>
                       </div>
                     </div>
                   ))}
@@ -426,11 +427,11 @@ const Comunidad = () => {
         <section className="comunidad-cta">
           <div className="cta-content">
             <h2>¿Listo para colaborar?</h2>
-            <p>Únete a nuestra comunidad y comienza a conectar con personas increíbles</p>
+            <p>Explora proyectos académicos y encuentra oportunidades de colaboración</p>
             <div className="cta-buttons">
-              <Link to="/" className="cta-btn primary">🚀 Únete a StudySphere</Link>
-              <button className="cta-btn secondary" onClick={() => setViewMode(viewMode === 'matching' ? 'lista' : 'matching')}>
-                {viewMode === 'matching' ? '👥 Ver Todos' : '💖 Descubrir'}
+              <Link to="/proyectos" className="cta-btn primary">🔍 Busca Proyectos</Link>
+              <button className="cta-btn secondary" onClick={() => setViewMode(viewMode === 'descubrir' ? 'lista' : 'descubrir')}>
+                {viewMode === 'descubrir' ? '👥 Ver Todos' : '🔍 Descubrir'}
               </button>
             </div>
           </div>

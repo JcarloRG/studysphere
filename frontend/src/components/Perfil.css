@@ -1,8 +1,65 @@
-
 .perfil-container {
     min-height: 100vh;
-    padding-top: 80px; /* Espacio para el header fijo */
-    /* Estilos de fondo globales aplicados en HomePage.css o en el layout principal */
+    padding-top: 80px;
+    /* 🌟 FONDO EXACTAMENTE IGUAL AL HOMEPAGE 🌟 */
+    background: #0f0f0f;
+    background: 
+        radial-gradient(ellipse at 20% 50%, rgba(120, 119, 198, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(255, 119, 198, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse at 40% 80%, rgba(119, 198, 255, 0.1) 0%, transparent 50%),
+        linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 50%, #16213e 100%);
+    position: relative;
+    width: 100%;
+}
+
+/* 🌟 FONDO EXACTAMENTE IGUAL AL HOMEPAGE 🌟 */
+.perfil-container .background-shapes {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.perfil-container .shape {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.1;
+    filter: blur(40px);
+}
+
+.perfil-container .shape-1 {
+    background: linear-gradient(45deg, #ff6b6b, #ffa726);
+    width: 300px;
+    height: 300px;
+    top: 10%;
+    left: 5%;
+}
+
+.perfil-container .shape-2 {
+    background: linear-gradient(45deg, #4ecdc4, #44a08d);
+    width: 400px;
+    height: 400px;
+    top: 60%;
+    right: 10%;
+}
+
+.perfil-container .shape-3 {
+    background: linear-gradient(45deg, #ff9ff3, #f368e0);
+    width: 200px;
+    height: 200px;
+    bottom: 20%;
+    left: 20%;
+}
+
+.perfil-container .shape-4 {
+    background: linear-gradient(45deg, #54a0ff, #5f27cd);
+    width: 350px;
+    height: 350px;
+    top: 30%;
+    right: 20%;
 }
 
 /* === ENCABEZADO Y LAYOUT PRINCIPAL === */
@@ -43,22 +100,22 @@
 /* 1. LAYOUT PRINCIPAL DE DOS COLUMNAS */
 .perfil-grid-layout {
     display: grid;
-    grid-template-columns: 3fr 1fr; /* Columna de contenido (3) y barra lateral (1) */
+    grid-template-columns: 3fr 1fr;
     gap: 30px;
     max-width: 1400px;
     margin: 0 auto;
-    padding: 0 40px 60px; /* Padding en la parte inferior */
+    padding: 0 40px 60px;
 }
 
 .perfil-content-wrapper {
-    min-width: 0; /* Necesario para que el contenido no desborde en flexbox */
+    min-width: 0;
 }
 
 /* === NAVEGACIÓN POR PESTAÑAS === */
 
 .perfil-tabs {
     display: flex;
-    gap: 1px; /* Espacio mínimo entre botones */
+    gap: 1px;
     margin-bottom: 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -73,7 +130,7 @@
     cursor: pointer;
     transition: all 0.3s ease;
     border-bottom: 3px solid transparent;
-    margin-bottom: -1px; /* Para ocultar la línea divisoria */
+    margin-bottom: -1px;
 }
 
 .tab-btn:hover {
@@ -84,20 +141,17 @@
 .tab-btn.active {
     color: #667eea;
     border-bottom-color: #667eea;
-    background: #1a1a2e; /* Usamos el color oscuro para la pestaña activa */
+    background: #1a1a2e;
 }
 
 .perfil-tab-content {
-    /* 🌟 MODIFICACIÓN CLAVE: Fondo oscuro sólido 🌟 */
     background: #1a1a2e; 
-    
     padding: 30px;
-    border-radius: 0 0 16px 16px; /* Borde redondeado solo abajo */
+    border-radius: 0 0 16px 16px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-top: none;
-    min-height: 400px; 
+    min-height: 400px;
 }
-
 
 /* === BARRA LATERAL (SIDEBAR) === */
 
@@ -106,7 +160,7 @@
     flex-direction: column;
     gap: 30px;
     position: sticky;
-    top: 110px; /* Separación del header */
+    top: 110px;
     height: fit-content;
 }
 
@@ -149,7 +203,6 @@
     text-decoration: none;
 }
 
-/* Estilos de botones de la barra lateral (usando tus estilos existentes como base) */
 .contactar-btn {
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
@@ -181,7 +234,6 @@
     transform: translateY(-1px);
 }
 
-/* Enlaces rápidos de la barra lateral (secundarios) */
 .sidebar-link-btn {
     display: flex;
     align-items: center;
@@ -202,7 +254,7 @@
 
 .info-grid-custom {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Ajustamos el minmax */
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 20px;
 }
 
@@ -215,7 +267,6 @@
 }
 
 .section-title-custom {
-    /* Estilo del título */
     font-size: 1.4rem;
     font-weight: 600;
     margin-bottom: 20px;
@@ -324,7 +375,7 @@
 
 @media (max-width: 1024px) {
     .perfil-grid-layout {
-        grid-template-columns: 1fr; /* Una sola columna en tablet */
+        grid-template-columns: 1fr;
         padding: 0 30px 60px;
         gap: 40px;
     }
@@ -334,9 +385,9 @@
     }
 
     .perfil-sidebar {
-        position: relative; /* Desactiva sticky en tablet/móvil */
+        position: relative;
         top: 0;
-        grid-row: auto; /* Se mueve al final */
+        grid-row: auto;
     }
 }
 

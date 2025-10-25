@@ -6,7 +6,6 @@ import './HomePage.css';
 const HomePage = () => {
     const navigate = useNavigate();
     const [showLoginModal, setShowLoginModal] = useState(false);
-    // 🌟 NUEVO ESTADO para controlar la animación CSS 
     const [modalOpen, setModalOpen] = useState(false); 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState(''); 
@@ -14,8 +13,7 @@ const HomePage = () => {
     const [error, setError] = useState('');
 
     const handleMiPerfil = () => {
-        setShowLoginModal(true); // 1. Muestra el modal en el DOM inmediatamente
-        // 2. Espera un microsegundo y aplica la clase 'open' para iniciar el slide-in
+        setShowLoginModal(true);
         setTimeout(() => {
             setModalOpen(true);
         }, 10); 
@@ -23,7 +21,6 @@ const HomePage = () => {
         setPassword(''); 
     };
 
-    // LÓGICA DE LOGIN (se mantiene sin cambios, usa email y password)
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -38,22 +35,20 @@ const HomePage = () => {
                 if (result.success) {
                     console.log('✅ Inicio de sesión exitoso:', result.data);
                     
-                    // Lógica de sesión y redirección
                     navigate(`/perfil/${result.data.tipo}/${result.data.perfil_id}`);
                     
-                    // Lógica de cierre limpia y animada
                     setModalOpen(false);
                     setTimeout(() => {
                         setShowLoginModal(false);
                         setEmail('');
                         setPassword('');
-                    }, 400); // 400ms es la duración de la transición en HomePage.css
+                    }, 400);
                 } else {
-                    setError(result.message || 'Correo o contraseña incorrectos.');
+                    setError('Correo o contraseña incorrectos.');
                 }
             } catch (err) {
                 console.error('💥 Error en login:', err);
-                setError('Error de conexión o servidor. Intenta de nuevo.');
+                setError('Correo o contraseña incorrectos.');
             }
         } else {
             setError('Por favor ingresa tu correo y contraseña.');
@@ -63,14 +58,21 @@ const HomePage = () => {
     };
 
     const handleCloseModal = () => {
-        setModalOpen(false); // 1. Quita la clase 'open' para iniciar el slide-out
-        // 2. Espera a que la animación termine (400ms) antes de remover el modal del DOM
+        setModalOpen(false);
         setTimeout(() => {
             setShowLoginModal(false);
             setEmail('');
             setPassword(''); 
             setError('');
-        }, 400); // Ajusta este tiempo al CSS transition-duration (0.4s)
+        }, 400);
+    };
+
+    const scrollToRegistration = () => {
+        const registrationSection = document.querySelector('.registration-section');
+        if (registrationSection) {
+            registrationSection.scrollIntoView({ behavior: 'smooth' });
+        }
+        handleCloseModal();
     };
 
     return (
@@ -83,11 +85,15 @@ const HomePage = () => {
                 <div className="shape shape-4"></div>
             </div>
 
-            {/* Header Elegante */}
+            {/* Header Elegante con Logo */}
             <header className="premium-header">
                 <div className="header-content">
                     <div className="logo-section">
-                        <div className="logo-icon">🚀</div>
+                        <img 
+                            src="/logo192.png" 
+                            alt="StudySphere Logo" 
+                            className="site-logo"
+                        />
                         <h1>StudySphere</h1>
                     </div>
                     <nav className="nav-actions">
@@ -103,11 +109,10 @@ const HomePage = () => {
                 </div>
             </header>
 
-            {/* Modal de Login */}
+            {/* Modal de Login Centrado */}
             {showLoginModal && (
-                <div className="modal-overlay">
-                    {/* 🌟 Aplicar la clase 'open' para la animación de slide-in 🌟 */}
-                    <div className={`premium-modal ${modalOpen ? 'open' : ''}`}> 
+                <div className="modal-overlay centered-modal-overlay">
+                    <div className={`premium-modal centered-premium-modal ${modalOpen ? 'open' : ''}`}> 
                         <div className="modal-header">
                             <div className="modal-icon">🔐</div>
                             <h2>Iniciar Sesión</h2>
@@ -134,7 +139,6 @@ const HomePage = () => {
                                 />
                             </div>
                             
-                            {/* CAMPO DE CONTRASEÑA */}
                             <div className="form-group">
                                 <label htmlFor="password">Contraseña</label>
                                 <input
@@ -179,6 +183,21 @@ const HomePage = () => {
                                     )}
                                 </button>
                             </div>
+
+                            {/* Nuevo Botón de Crear Cuenta */}
+                            <div className="create-account-section">
+                                <p className="create-account-text">
+                                    ¿No tienes una cuenta?
+                                </p>
+                                <button 
+                                    type="button"
+                                    className="btn create-account-btn"
+                                    onClick={scrollToRegistration}
+                                    disabled={loading}
+                                >
+                                    Crear una cuenta
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -215,7 +234,7 @@ const HomePage = () => {
                 </div>
             </section>
 
-            {/* Sección de Registros - Directamente después del hero */}
+            {/* Sección de Registros */}
             <section className="registration-section">
                 <div className="section-header">
                     <h2>Únete a Nuestra Comunidad</h2>
@@ -262,8 +281,6 @@ const HomePage = () => {
                     </Link>
                 </div>
             </section>
-
-           
         </div>
     );
 };

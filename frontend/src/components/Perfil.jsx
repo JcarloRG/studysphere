@@ -367,7 +367,11 @@ const Perfil = () => {
       <header className="premium-header">
         <div className="header-content">
           <div className="logo-section">
-            <div className="logo-icon">🚀</div>
+            <img 
+              src="/logo192.png" 
+              alt="StudySphere Logo" 
+              className="site-logo"
+            />
             <h1>StudySphere</h1>
           </div>
           <nav className="nav-actions">
