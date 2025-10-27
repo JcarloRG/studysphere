@@ -88,6 +88,56 @@ def send_verification_email(to_email, code):
         return False
 
 
+# ===================== Storage Helpers =====================
+
+def _estudiante_media_storage():
+    """
+    Crea un FileSystemStorage apuntando a /media/estudiantes
+    """
+    base_dir = os.path.join(settings.MEDIA_ROOT, 'estudiantes')
+    base_url = settings.MEDIA_URL.rstrip('/') + '/estudiantes/'
+    os.makedirs(base_dir, exist_ok=True)
+    return FileSystemStorage(location=base_dir, base_url=base_url)
+
+def _docente_media_storage():
+    """
+    Crea un FileSystemStorage apuntando a /media/docentes
+    """
+    base_dir = os.path.join(settings.MEDIA_ROOT, 'docentes')
+    base_url = settings.MEDIA_URL.rstrip('/') + '/docentes/'
+    os.makedirs(base_dir, exist_ok=True)
+    return FileSystemStorage(location=base_dir, base_url=base_url)
+
+def _egresado_media_storage():
+    """
+    Crea un FileSystemStorage apuntando a /media/egresados
+    """
+    base_dir = os.path.join(settings.MEDIA_ROOT, 'egresados')
+    base_url = settings.MEDIA_URL.rstrip('/') + '/egresados/'
+    os.makedirs(base_dir, exist_ok=True)
+    return FileSystemStorage(location=base_dir, base_url=base_url)
+
+def _parse_request_data(request):
+    """
+    Parsea datos del request según Content-Type
+    Retorna (data, files)
+    """
+    content_type = request.content_type or ''
+    
+    if 'application/json' in content_type:
+        # Si es JSON (sin archivos)
+        data = json.loads(request.body)
+        files = {}
+    elif 'multipart/form-data' in content_type or 'application/x-www-form-urlencoded' in content_type:
+        # Si es form-data (puede incluir archivos)
+        data = request.POST.dict()
+        files = request.FILES
+    else:
+        raise ValueError('Content-Type no soportado. Use JSON o form-data.')
+    
+    return data, files
+
+
 # ===================== LOGIN =====================
 
 @csrf_exempt
@@ -119,7 +169,7 @@ def login_user(request):
 
         for tabla, tipo in tablas.items():
             sql = f"""
-            SELECT id, nombre_completo, correo_institucional, email_verified
+            SELECT id, nombre_completo, correo_institucional, email_verified, foto
             FROM {tabla}
             WHERE LOWER(correo_institucional)=%s AND password_hash=SHA2(%s, 256)
             LIMIT 1
@@ -133,7 +183,8 @@ def login_user(request):
                     'nombre_completo': row['nombre_completo'],
                     'correo_institucional': row['correo_institucional'],
                     'tipo': tipo,
-                    'email_verified': bool(row['email_verified'])
+                    'email_verified': bool(row['email_verified']),
+                    'foto': row['foto'] or '/static/images/default-avatar.png'
                 }
                 break
 
@@ -167,9 +218,11 @@ def registrar_estudiante(request):
         return json_err('Método no permitido. Usa POST.', 405)
 
     try:
-        data = json.loads(request.body)
+        # PARSEAR DATOS SEGÚN CONTENT-TYPE
+        data, files = _parse_request_data(request)
         print("📝 Datos estudiante recibidos:", data)
 
+        # VALIDAR CAMPOS OBLIGATORIOS
         campos = ['nombre_completo', 'correo_institucional', 'numero_control', 'carrera_actual', 'password']
         for c in campos:
             if not data.get(c):
@@ -178,10 +231,25 @@ def registrar_estudiante(request):
         conn = db_conn()
         cursor = conn.cursor()
 
+        # MANEJAR FOTO SI SE ENVIÓ
+        foto_url = None
+        if 'foto' in files:
+            foto = files['foto']
+            if foto.size > 3 * 1024 * 1024:
+                return json_err('La imagen no debe superar 3MB.', 400)
+            
+            # Guardar archivo temporalmente
+            fs = _estudiante_media_storage()
+            base, ext = os.path.splitext(foto.name)
+            safe_name = f"est_temp_{int(datetime.now().timestamp())}{ext.lower()}"
+            filename = fs.save(safe_name, foto)
+            foto_url = fs.url(filename)
+
+        # INSERTAR EN BASE DE DATOS
         sql = """
         INSERT INTO estudiantes
-        (nombre_completo, correo_institucional, password_hash, numero_control, carrera_actual, otra_carrera, semestre, habilidades, area_interes)
-        VALUES (%s,%s, SHA2(%s, 256), %s,%s,%s,%s,%s,%s)
+        (nombre_completo, correo_institucional, password_hash, numero_control, carrera_actual, otra_carrera, semestre, habilidades, area_interes, foto)
+        VALUES (%s,%s, SHA2(%s, 256), %s,%s,%s,%s,%s,%s,%s)
         """
         valores = (
             data['nombre_completo'],
@@ -192,14 +260,34 @@ def registrar_estudiante(request):
             data.get('otra_carrera', 'No'),
             data.get('semestre', ''),
             data.get('habilidades', ''),
-            data.get('area_interes', '')
+            data.get('area_interes', ''),
+            foto_url  # Puede ser None
         )
         cursor.execute(sql, valores)
         conn.commit()
 
+        # OBTENER ID Y ACTUALIZAR NOMBRE DE ARCHIVO SI HAY FOTO
         cursor.execute("SELECT LAST_INSERT_ID()")
         estudiante_id = cursor.fetchone()[0]
 
+        if foto_url and 'foto' in files:
+            # Renombrar archivo con ID real
+            foto = files['foto']
+            base, ext = os.path.splitext(foto.name)
+            new_name = f"est_{estudiante_id}_{int(datetime.now().timestamp())}{ext.lower()}"
+            old_path = fs.path(filename)
+            new_path = fs.path(new_name)
+            
+            if os.path.exists(old_path):
+                os.rename(old_path, new_path)
+            
+            # Actualizar BD con nueva URL
+            new_url = fs.url(new_name)
+            cursor.execute("UPDATE estudiantes SET foto=%s WHERE id=%s", (new_url, estudiante_id))
+            conn.commit()
+            foto_url = new_url
+
+        # GENERAR CÓDIGO DE VERIFICACIÓN
         code = generate_code(6)
         now = datetime.now()
         exp = now + timedelta(minutes=15)
@@ -214,13 +302,18 @@ def registrar_estudiante(request):
         cursor.close()
         conn.close()
 
-        return json_ok({'id': estudiante_id}, '¡Estudiante registrado! Revisa tu correo para el código.', 201)
+        return json_ok({
+            'id': estudiante_id,
+            'foto': foto_url or '/static/images/default-avatar.png'
+        }, '¡Estudiante registrado! Revisa tu correo para el código.', 201)
 
     except mysql.connector.Error as e:
         print("❌ ERROR MySQL:", str(e))
         return json_err(f'Error de base de datos: {str(e)}', 500)
     except Exception as e:
         print("❌ ERROR general:", str(e))
+        import traceback
+        print("Traceback:", traceback.format_exc())
         return json_err(f'Error interno: {str(e)}', 500)
 
 
@@ -236,9 +329,11 @@ def registrar_docente(request):
         return json_err('Método no permitido. Usa POST.', 405)
 
     try:
-        data = json.loads(request.body)
+        # PARSEAR DATOS SEGÚN CONTENT-TYPE
+        data, files = _parse_request_data(request)
         print("📝 Datos docente recibidos:", data)
 
+        # VALIDAR CAMPOS OBLIGATORIOS
         campos = ['nombre_completo', 'correo_institucional', 'carrera_egreso', 'password']
         for c in campos:
             if not data.get(c):
@@ -247,10 +342,25 @@ def registrar_docente(request):
         conn = db_conn()
         cursor = conn.cursor()
 
+        # MANEJAR FOTO SI SE ENVIÓ
+        foto_url = None
+        if 'foto' in files:
+            foto = files['foto']
+            if foto.size > 3 * 1024 * 1024:
+                return json_err('La imagen no debe superar 3MB.', 400)
+            
+            # Guardar archivo temporalmente
+            fs = _docente_media_storage()
+            base, ext = os.path.splitext(foto.name)
+            safe_name = f"doc_temp_{int(datetime.now().timestamp())}{ext.lower()}"
+            filename = fs.save(safe_name, foto)
+            foto_url = fs.url(filename)
+
+        # INSERTAR EN BASE DE DATOS
         sql = """
         INSERT INTO docentes
-        (nombre_completo, correo_institucional, password_hash, carrera_egreso, carreras_imparte, grado_academico, habilidades, logros)
-        VALUES (%s,%s, SHA2(%s, 256), %s,%s,%s,%s,%s)
+        (nombre_completo, correo_institucional, password_hash, carrera_egreso, carreras_imparte, grado_academico, habilidades, logros, foto)
+        VALUES (%s,%s, SHA2(%s, 256), %s,%s,%s,%s,%s,%s)
         """
         valores = (
             data['nombre_completo'],
@@ -260,14 +370,34 @@ def registrar_docente(request):
             data.get('carreras_imparte', ''),
             data.get('grado_academico', ''),
             data.get('habilidades', ''),
-            data.get('logros', '')
+            data.get('logros', ''),
+            foto_url  # Puede ser None
         )
         cursor.execute(sql, valores)
         conn.commit()
 
+        # OBTENER ID Y ACTUALIZAR NOMBRE DE ARCHIVO SI HAY FOTO
         cursor.execute("SELECT LAST_INSERT_ID()")
         docente_id = cursor.fetchone()[0]
 
+        if foto_url and 'foto' in files:
+            # Renombrar archivo con ID real
+            foto = files['foto']
+            base, ext = os.path.splitext(foto.name)
+            new_name = f"doc_{docente_id}_{int(datetime.now().timestamp())}{ext.lower()}"
+            old_path = fs.path(filename)
+            new_path = fs.path(new_name)
+            
+            if os.path.exists(old_path):
+                os.rename(old_path, new_path)
+            
+            # Actualizar BD con nueva URL
+            new_url = fs.url(new_name)
+            cursor.execute("UPDATE docentes SET foto=%s WHERE id=%s", (new_url, docente_id))
+            conn.commit()
+            foto_url = new_url
+
+        # GENERAR CÓDIGO DE VERIFICACIÓN
         code = generate_code(6)
         now = datetime.now()
         exp = now + timedelta(minutes=15)
@@ -282,13 +412,18 @@ def registrar_docente(request):
         cursor.close()
         conn.close()
 
-        return json_ok({'id': docente_id}, '¡Docente registrado! Revisa tu correo para el código.', 201)
+        return json_ok({
+            'id': docente_id,
+            'foto': foto_url or '/static/images/default-avatar.png'
+        }, '¡Docente registrado! Revisa tu correo para el código.', 201)
 
     except mysql.connector.Error as e:
         print("❌ ERROR MySQL:", str(e))
         return json_err(f'Error de base de datos: {str(e)}', 500)
     except Exception as e:
         print("❌ ERROR general:", str(e))
+        import traceback
+        print("Traceback:", traceback.format_exc())
         return json_err(f'Error interno: {str(e)}', 500)
 
 
@@ -304,9 +439,11 @@ def registrar_egresado(request):
         return json_err('Método no permitido. Usa POST.', 405)
 
     try:
-        data = json.loads(request.body)
+        # PARSEAR DATOS SEGÚN CONTENT-TYPE
+        data, files = _parse_request_data(request)
         print("📝 Datos egresado recibidos:", data)
 
+        # VALIDAR CAMPOS OBLIGATORIOS
         campos = ['nombre_completo', 'correo_institucional', 'carrera_egreso', 'anio_egreso', 'password']
         for c in campos:
             if not data.get(c):
@@ -319,10 +456,25 @@ def registrar_egresado(request):
         conn = db_conn()
         cursor = conn.cursor()
 
+        # MANEJAR FOTO SI SE ENVIÓ
+        foto_url = None
+        if 'foto' in files:
+            foto = files['foto']
+            if foto.size > 3 * 1024 * 1024:
+                return json_err('La imagen no debe superar 3MB.', 400)
+            
+            # Guardar archivo temporalmente
+            fs = _egresado_media_storage()
+            base, ext = os.path.splitext(foto.name)
+            safe_name = f"egr_temp_{int(datetime.now().timestamp())}{ext.lower()}"
+            filename = fs.save(safe_name, foto)
+            foto_url = fs.url(filename)
+
+        # INSERTAR EN BASE DE DATOS
         sql = """
         INSERT INTO egresados
-        (nombre_completo, correo_institucional, password_hash, carrera_egreso, anio_egreso, ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, competencias)
-        VALUES (%s,%s, SHA2(%s, 256), %s,%s,%s,%s,%s,%s,%s,%s,%s)
+        (nombre_completo, correo_institucional, password_hash, carrera_egreso, anio_egreso, ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, competencias, foto)
+        VALUES (%s,%s, SHA2(%s, 256), %s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         """
         valores = (
             data['nombre_completo'],
@@ -336,14 +488,34 @@ def registrar_egresado(request):
             data.get('puesto', ''),
             data.get('logros', ''),
             data.get('habilidades', ''),
-            data.get('competencias', '')
+            data.get('competencias', ''),
+            foto_url  # Puede ser None
         )
         cursor.execute(sql, valores)
         conn.commit()
 
+        # OBTENER ID Y ACTUALIZAR NOMBRE DE ARCHIVO SI HAY FOTO
         cursor.execute("SELECT LAST_INSERT_ID()")
         egresado_id = cursor.fetchone()[0]
 
+        if foto_url and 'foto' in files:
+            # Renombrar archivo con ID real
+            foto = files['foto']
+            base, ext = os.path.splitext(foto.name)
+            new_name = f"egr_{egresado_id}_{int(datetime.now().timestamp())}{ext.lower()}"
+            old_path = fs.path(filename)
+            new_path = fs.path(new_name)
+            
+            if os.path.exists(old_path):
+                os.rename(old_path, new_path)
+            
+            # Actualizar BD con nueva URL
+            new_url = fs.url(new_name)
+            cursor.execute("UPDATE egresados SET foto=%s WHERE id=%s", (new_url, egresado_id))
+            conn.commit()
+            foto_url = new_url
+
+        # GENERAR CÓDIGO DE VERIFICACIÓN
         code = generate_code(6)
         now = datetime.now()
         exp = now + timedelta(minutes=15)
@@ -358,13 +530,18 @@ def registrar_egresado(request):
         cursor.close()
         conn.close()
 
-        return json_ok({'id': egresado_id}, '¡Egresado registrado! Revisa tu correo para el código.', 201)
+        return json_ok({
+            'id': egresado_id,
+            'foto': foto_url or '/static/images/default-avatar.png'
+        }, '¡Egresado registrado! Revisa tu correo para el código.', 201)
 
     except mysql.connector.Error as e:
         print("❌ ERROR MySQL:", str(e))
         return json_err(f'Error de base de datos: {str(e)}', 500)
     except Exception as e:
         print("❌ ERROR general:", str(e))
+        import traceback
+        print("Traceback:", traceback.format_exc())
         return json_err(f'Error interno: {str(e)}', 500)
 
 
@@ -378,7 +555,8 @@ def listar_estudiantes(request):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, numero_control, carrera_actual, 
-                   otra_carrera, semestre, habilidades, area_interes, fecha_registro, foto
+                   otra_carrera, semestre, habilidades, area_interes, fecha_registro, 
+                   COALESCE(foto, '/static/images/default-avatar.png') as foto
             FROM estudiantes ORDER BY id DESC
         """)
         rows = cursor.fetchall()
@@ -395,7 +573,8 @@ def listar_docentes(request):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, carrera_egreso, 
-                   carreras_imparte, grado_academico, habilidades, logros, fecha_registro
+                   carreras_imparte, grado_academico, habilidades, logros, fecha_registro,
+                   COALESCE(foto, '/static/images/default-avatar.png') as foto
             FROM docentes ORDER BY id DESC
         """)
         rows = cursor.fetchall()
@@ -413,7 +592,8 @@ def listar_egresados(request):
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, carrera_egreso, anio_egreso,
                    ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, 
-                   competencias, fecha_registro
+                   competencias, fecha_registro,
+                   COALESCE(foto, '/static/images/default-avatar.png') as foto
             FROM egresados ORDER BY id DESC
         """)
         rows = cursor.fetchall()
@@ -436,7 +616,8 @@ def perfil_estudiante(request, estudiante_id):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, numero_control, carrera_actual,
-                   otra_carrera, semestre, habilidades, area_interes, fecha_registro, foto
+                   otra_carrera, semestre, habilidades, area_interes, fecha_registro, 
+                   COALESCE(foto, '/static/images/default-avatar.png') as foto
             FROM estudiantes WHERE id=%s
         """, (estudiante_id,))
         row = cursor.fetchone()
@@ -458,7 +639,8 @@ def perfil_docente(request, docente_id):
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, carrera_egreso,
-                   carreras_imparte, grado_academico, habilidades, logros, fecha_registro
+                   carreras_imparte, grado_academico, habilidades, logros, fecha_registro,
+                   COALESCE(foto, '/static/images/default-avatar.png') as foto
             FROM docentes WHERE id=%s
         """, (docente_id,))
         row = cursor.fetchone()
@@ -481,7 +663,8 @@ def perfil_egresado(request, egresado_id):
         cursor.execute("""
             SELECT id, nombre_completo, correo_institucional, carrera_egreso, anio_egreso,
                    ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, 
-                   competencias, fecha_registro
+                   competencias, fecha_registro,
+                   COALESCE(foto, '/static/images/default-avatar.png') as foto
             FROM egresados WHERE id=%s
         """, (egresado_id,))
         row = cursor.fetchone()
@@ -494,15 +677,6 @@ def perfil_egresado(request, egresado_id):
 
 
 # ===================== FOTO ESTUDIANTE =====================
-
-def _estudiante_media_storage():
-    """
-    Crea un FileSystemStorage apuntando a /media/estudiantes
-    """
-    base_dir = os.path.join(settings.MEDIA_ROOT, 'estudiantes')
-    base_url = settings.MEDIA_URL.rstrip('/') + '/estudiantes/'
-    os.makedirs(base_dir, exist_ok=True)
-    return FileSystemStorage(location=base_dir, base_url=base_url)
 
 @csrf_exempt
 def actualizar_foto_estudiante(request, estudiante_id):

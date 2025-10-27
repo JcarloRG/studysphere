@@ -185,6 +185,13 @@ LOGGING = {
     },
 }
 
-# === Media (subida de archivos) ===
+# === Archivos estáticos y media (ACTUALIZADO) ===
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")] 
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")  # Para producción
+
+# Media files (archivos subidos por usuarios)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
