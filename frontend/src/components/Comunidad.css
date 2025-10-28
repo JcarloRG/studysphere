@@ -1318,3 +1318,23 @@
     padding: 10px 25px;
   }
 }
+
+.avatar {
+  display: block;
+  width: 56px;          /* avatar-sm */
+  height: 56px;
+  border-radius: 9999px;
+  object-fit: cover;    /* recorte correcto */
+  background: #1f2937;  /* fallback bg */
+  border: 3px solid rgba(255,255,255,0.08);
+}
+
+.avatar.avatar-xl {
+  width: 112px;
+  height: 112px;
+}
+
+.avatar.avatar-sm {
+  width: 56px;
+  height: 56px;
+}

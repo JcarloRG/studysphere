@@ -1,41 +1,32 @@
 # apps/users/urls.py
 from django.urls import path
-from .views import (
-    health, login_user,
-    registrar_estudiante, registrar_docente, registrar_egresado,
-    listar_estudiantes, listar_docentes, listar_egresados,
-    perfil_estudiante, perfil_docente, perfil_egresado,
-    request_email_code, verify_email_code,
-    actualizar_foto_estudiante,
-)
+from . import views
 
 urlpatterns = [
-    # Health
-    path('api/health/', health),
+    path('api/health/', views.health),
 
-    # Auth / Login
-    path('api/login/', login_user),
+    # listados
+    path('api/estudiantes/', views.listar_estudiantes),
+    path('api/docentes/', views.listar_docentes),
+    path('api/egresados/', views.listar_egresados),
 
-    # ====== REGISTROS ======
-    # OJO: coinciden con api.js
-    path('api/estudiante/registrar/', registrar_estudiante),
-    path('api/docente/registrar/', registrar_docente),
-    path('api/egresado/registrar/', registrar_egresado),
+    # perfiles
+    path('api/estudiante/<int:estudiante_id>/', views.perfil_estudiante),
+    path('api/docente/<int:docente_id>/', views.perfil_docente),
+    path('api/egresado/<int:egresado_id>/', views.perfil_egresado),
 
-    # ====== LISTADOS ======
-    path('api/estudiantes/', listar_estudiantes),
-    path('api/docentes/', listar_docentes),
-    path('api/egresados/', listar_egresados),
+    # login
+    path('api/login/', views.login_user),
 
-    # ====== PERFILES (detalle) ======
-    path('api/estudiante/<int:estudiante_id>/', perfil_estudiante),
-    path('api/docente/<int:docente_id>/', perfil_docente),
-    path('api/egresado/<int:egresado_id>/', perfil_egresado),
+    # registro
+    path('api/estudiante/registrar/', views.registrar_estudiante),
+    path('api/docente/registrar/', views.registrar_docente),
+    path('api/egresado/registrar/', views.registrar_egresado),
 
-    # ====== EMAIL ======
-    path('api/email/request_code/', request_email_code),
-    path('api/email/verify_code/', verify_email_code),
+    # email
+    path('api/email/request_code/', views.request_email_code),
+    path('api/email/verify_code/', views.verify_email_code),
 
-    # ====== FOTO (estudiante) ======
-    path('api/estudiantes/<int:estudiante_id>/foto/', actualizar_foto_estudiante),
+    # foto estudiante
+    path('api/estudiantes/<int:estudiante_id>/foto/', views.actualizar_foto_estudiante),
 ]
