@@ -9,35 +9,41 @@ import AdminPanel from './components/AdminPanel';
 import Perfil from './components/Perfil';
 import Comunidad from './components/Comunidad';
 import VerificationCode from './components/forms/VerificationCode.jsx';
+import PerfilVista from './components/perfil_vista.jsx'; 
+
 
 import VerificarEmail from './pages/VerifyEmail.jsx';
 
 import './App.css';
 
 function App() {
-  return (
-    <Router>
-      <div className="App">
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/comunidad" element={<Comunidad />} />
+    return (
+        <Router>
+            <div className="App">
+                <Routes>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/comunidad" element={<Comunidad />} />
 
-          <Route path="/estudiante" element={<EstudianteForm />} />
-          <Route path="/docente" element={<DocenteForm />} />
-          <Route path="/egresado" element={<EgresadoForm />} />
+                    <Route path="/estudiante" element={<EstudianteForm />} />
+                    <Route path="/docente" element={<DocenteForm />} />
+                    <Route path="/egresado" element={<EgresadoForm />} />
 
-          
-          <Route path="/verificar-email" element={<VerificationCode />} />
+                    
+                    <Route path="/verificar-email" element={<VerificationCode />} />
 
-          <Route path="/estudiante.html" element={<EstudianteForm />} />
-          <Route path="/docente.html" element={<DocenteForm />} />
-          <Route path="/profesionista.html" element={<EgresadoForm />} />
+                    <Route path="/estudiante.html" element={<EstudianteForm />} />
+                    <Route path="/docente.html" element={<DocenteForm />} />
+                    <Route path="/profesionista.html" element={<EgresadoForm />} />
 
-          <Route path="/perfil/:tipo/:id" element={<Perfil />} />
-        </Routes>
-      </div>
-    </Router>
-  );
+                    {/* Ruta para el perfil propio/edición */}
+                    <Route path="/perfil/:tipo/:id" element={<Perfil />} /> 
+                    
+                    {/* Ruta para el perfil de vista pública */}
+                    <Route path="/perfil_vista/:tipo/:id" element={<PerfilVista />} />
+                </Routes>
+            </div>
+        </Router>
+    );
 }
 
 export default App;

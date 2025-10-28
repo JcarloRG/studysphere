@@ -35,6 +35,11 @@ const HomePage = () => {
                 if (result.success) {
                     console.log('✅ Inicio de sesión exitoso:', result.data);
                     
+                    // 🌟 1. GUARDAR ID Y TIPO EN LOCALSTORAGE (¡Mantenido y Correcto!) 🌟
+                    localStorage.setItem('currentUserId', result.data.perfil_id);
+                    localStorage.setItem('currentUserType', result.data.tipo);
+                    
+                    // 2. Iniciar redirección y cierre animado
                     navigate(`/perfil/${result.data.tipo}/${result.data.perfil_id}`);
                     
                     setModalOpen(false);
@@ -43,18 +48,23 @@ const HomePage = () => {
                         setEmail('');
                         setPassword('');
                     }, 400);
+
+                    // 🌟 3. CORRECCIÓN: Usar return para detener la ejecución aquí 🌟
+                    // Esto evita que setLoading(false) se ejecute antes de la redirección.
+                    return; 
                 } else {
-                    setError('Correo o contraseña incorrectos.');
+                    setError(result.message || 'Correo o contraseña incorrectos.');
                 }
             } catch (err) {
                 console.error('💥 Error en login:', err);
-                setError('Correo o contraseña incorrectos.');
+                setError(err.message || 'Ocurrió un error al intentar iniciar sesión. Verifica tu conexión.'); 
             }
         } else {
             setError('Por favor ingresa tu correo y contraseña.');
         }
         
-        setLoading(false);
+        // Se ejecuta solo si hubo un error (no si el login fue exitoso y devolvió un return)
+        setLoading(false); 
     };
 
     const handleCloseModal = () => {

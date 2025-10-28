@@ -10,6 +10,7 @@ import json
 import random
 import string
 from datetime import datetime, timedelta
+import traceback # Necesario para tu bloque except
 
 import mysql.connector
 
@@ -203,6 +204,8 @@ def login_user(request):
         return json_err(f'Error de base de datos: {str(e)}', 500)
     except Exception as e:
         print("❌ ERROR general en login:", str(e))
+        import traceback
+        print("Traceback:", traceback.format_exc())
         return json_err(f'Error interno: {str(e)}', 500)
 
 
@@ -545,20 +548,36 @@ def registrar_egresado(request):
         return json_err(f'Error interno: {str(e)}', 500)
 
 
-# ===================== LISTADOS =====================
+# ===================== LISTADOS (MODIFICADO para exclusión) =====================
 
 def listar_estudiantes(request):
     if request.method != 'GET':
         return json_err('Método no permitido', 405)
+    
+    # 🌟 NUEVA LÓGICA: Leer exclude_id de los parámetros de la URL
+    exclude_id = request.GET.get('exclude_id')
+    
     try:
         conn = db_conn()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("""
+        
+        # Construcción dinámica de la consulta
+        sql = """
             SELECT id, nombre_completo, correo_institucional, numero_control, carrera_actual, 
                    otra_carrera, semestre, habilidades, area_interes, fecha_registro, 
                    COALESCE(foto, '/static/images/default-avatar.png') as foto
-            FROM estudiantes ORDER BY id DESC
-        """)
+            FROM estudiantes
+        """
+        params = []
+        
+        if exclude_id and exclude_id.isdigit():
+            # Añadir cláusula WHERE si se proporciona exclude_id
+            sql += " WHERE id != %s "
+            params.append(exclude_id)
+            
+        sql += " ORDER BY id DESC"
+        
+        cursor.execute(sql, tuple(params))
         rows = cursor.fetchall()
         cursor.close(); conn.close()
         return json_ok(rows)
@@ -568,15 +587,29 @@ def listar_estudiantes(request):
 def listar_docentes(request):
     if request.method != 'GET':
         return json_err('Método no permitido', 405)
+        
+    # 🌟 NUEVA LÓGICA: Leer exclude_id
+    exclude_id = request.GET.get('exclude_id')
+    
     try:
         conn = db_conn()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("""
+        
+        sql = """
             SELECT id, nombre_completo, correo_institucional, carrera_egreso, 
                    carreras_imparte, grado_academico, habilidades, logros, fecha_registro,
                    COALESCE(foto, '/static/images/default-avatar.png') as foto
-            FROM docentes ORDER BY id DESC
-        """)
+            FROM docentes
+        """
+        params = []
+        
+        if exclude_id and exclude_id.isdigit():
+            sql += " WHERE id != %s "
+            params.append(exclude_id)
+            
+        sql += " ORDER BY id DESC"
+        
+        cursor.execute(sql, tuple(params))
         rows = cursor.fetchall()
         cursor.close(); conn.close()
         return json_ok(rows)
@@ -586,16 +619,30 @@ def listar_docentes(request):
 def listar_egresados(request):
     if request.method != 'GET':
         return json_err('Método no permitido', 405)
+        
+    # 🌟 NUEVA LÓGICA: Leer exclude_id
+    exclude_id = request.GET.get('exclude_id')
+    
     try:
         conn = db_conn()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("""
+        
+        sql = """
             SELECT id, nombre_completo, correo_institucional, carrera_egreso, anio_egreso,
                    ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, 
                    competencias, fecha_registro,
                    COALESCE(foto, '/static/images/default-avatar.png') as foto
-            FROM egresados ORDER BY id DESC
-        """)
+            FROM egresados
+        """
+        params = []
+        
+        if exclude_id and exclude_id.isdigit():
+            sql += " WHERE id != %s "
+            params.append(exclude_id)
+            
+        sql += " ORDER BY id DESC"
+        
+        cursor.execute(sql, tuple(params))
         rows = cursor.fetchall()
         cursor.close(); conn.close()
         return json_ok(rows)

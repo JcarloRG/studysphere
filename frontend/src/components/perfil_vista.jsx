@@ -206,51 +206,6 @@ const Perfil = () => {
             );
         }
 
-        if (activeTab === 'habilidades') {
-            const hasContent = perfil.habilidades || perfil.area_interes || perfil.competencias || perfil.logros;
-            return (
-                <div className="info-section-custom full-width">
-                    <h3 className="section-title-custom">🚀 Habilidades y Logros</h3>
-                    {hasContent ? (
-                        <div className="info-grid-custom">
-                            {perfil.habilidades && (<div className="info-item-custom full-width"><label>Habilidades</label><p>{perfil.habilidades}</p></div>)}
-                            {perfil.area_interes && (<div className="info-item-custom full-width"><label>Áreas de Interés</label><p>{perfil.area_interes}</p></div>)}
-                            {perfil.competencias && (<div className="info-item-custom full-width"><label>Competencias</label><p>{perfil.competencias}</p></div>)}
-                            {perfil.logros && (<div className="info-item-custom full-width"><label>Logros / Experiencia</label><p>{perfil.logros}</p></div>)}
-                        </div>
-                    ) : (<p className="no-content-message">No se han especificado habilidades, logros o intereses.</p>)}
-                </div>
-            );
-        }
-
-        if (activeTab === 'explorar') {
-            return (
-                <div className="explorar-section-custom">
-                    <h3 className="section-title-custom">✨ ¿Qué quieres hacer?</h3>
-                    <p className="section-description-custom">
-                        Acciones para conectar con otros perfiles y proyectos en StudySphere.
-                    </p>
-                    <div className="action-cards-grid">
-                        <Link to="/comunidad" className="action-card explorar-btn">
-                            <span className="card-icon">🌐</span>
-                            <h4>Explorar Comunidad</h4>
-                            <p>Encuentra perfiles y proyectos relevantes.</p>
-                        </Link>
-                        <Link to="/registros/estudiantes" className="action-card miembros-btn">
-                            <span className="card-icon">👥</span>
-                            <h4>Ver Miembros</h4>
-                            <p>Consulta la lista completa de usuarios registrados.</p>
-                        </Link>
-                        <Link to="/proyectos/busqueda" className="action-card proyectos-btn">
-                            <span className="card-icon">💡</span>
-                            <h4>Buscar Proyectos</h4>
-                            <p>Encuentra oportunidades de colaboración.</p>
-                        </Link>
-                    </div>
-                </div>
-            );
-        }
-
         return <p className="no-content-message">Selecciona una pestaña para ver el contenido.</p>;
     };
 
@@ -332,9 +287,7 @@ const Perfil = () => {
                             <button className={`tab-btn ${activeTab === 'habilidades' ? 'active' : ''}`} onClick={() => setActiveTab('habilidades')}>
                                 Habilidades y Logros
                             </button>
-                            <button className={`tab-btn ${activeTab === 'explorar' ? 'active' : ''}`} onClick={() => setActiveTab('explorar')}>
-                                Comunidad
-                            </button>
+
                         </nav>
                     </div>
                 </div>
@@ -360,50 +313,8 @@ const Perfil = () => {
                                         <span className="btn-icon">✉️</span> Contactar
                                     </button>
                                 )}
-                                
-                                {/* 2. EDITAR PERFIL (Solo si es Propietario o Admin) */}
-                                {(isOwner || isAdmin) && (
-                                    <button onClick={handleEditar} className="sidebar-btn editar-btn">
-                                        <span className="btn-icon">✏️</span> Editar Perfil
-                                    </button>
-                                )}
-                                
-                                {/* 3. ELIMINAR PERFIL (Solo si es Propietario o Admin) */}
-                                {(isOwner || isAdmin) && (
-                                    <button onClick={handleEliminar} className="sidebar-btn eliminar-btn">
-                                        <span className="btn-icon">🗑️</span> Eliminar Perfil
-                                    </button>
-                                )}
-
-                                {/* Mensaje si no hay acciones de interacción/gestión */}
-                                {!isOwner && !isAdmin && (
-                                    <p className="sidebar-no-actions" style={{color: '#a8b2d1', fontSize: '0.9em'}}>
-                                        Este es un perfil público.
-                                    </p>
-                                )}
-                                
-                                {/* 🌟 BOTÓN CERRAR SESIÓN (Solo si es el Propietario o Admin) 🌟 */}
-                                {(isOwner || isAdmin) && (
-                                    <button onClick={handleLogout} className="sidebar-btn logout-btn">
-                                        <span className="btn-icon">🚪</span> Cerrar Sesión
-                                    </button>
-                                )}
-                                {/* ---------------------------------------------------- */}
                             </div>
                         </div>
-
-                        {/* Tarjeta de navegación rápida (MANTENIDO) */}
-                        {activeTab !== 'explorar' && (
-                            <div className="sidebar-card secondary-actions">
-                                <h3 className="sidebar-title">🌐 Conecta y Explora</h3>
-                                <Link to="/comunidad" className="sidebar-link-btn">
-                                    <span className="btn-icon">🔍</span> Explorar Comunidad
-                                </Link>
-                                <Link to="/registros/estudiantes" className="sidebar-link-btn">
-                                    <span className="btn-icon">👥</span> Ver Miembros
-                                </Link>
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>

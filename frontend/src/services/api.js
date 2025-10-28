@@ -198,7 +198,7 @@ async function requestMultipart(method, path, formData, timeoutMs = 20000) {
 
 export const apiService = {
 
-    /* ---------- AUTHENTICATION (NEW) ---------- */
+    /* ---------- AUTHENTICATION ---------- */
     async loginUser(email, password) {
         console.log(`🔐 INICIANDO LOGIN para: ${email}`);
 
@@ -296,28 +296,28 @@ export const apiService = {
         };
     },
 
-    /* ---------- LIST ---------- */
-    async getEstudiantes() {
-        console.log('🔍 Obteniendo lista de estudiantes...');
-        const res = await requestJSON('GET', '/api/estudiantes/');
+    /* ---------- LIST (MODIFICADO para excluir ID) ---------- */
+    async getEstudiantes(excludeId = null) {
+        console.log(`🔍 Obteniendo lista de estudiantes (Excluir: ${excludeId})...`);
+        const query = excludeId ? `?exclude_id=${excludeId}` : '';
+        const res = await requestJSON('GET', `/api/estudiantes/${query}`);
         const data = Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data);
-        console.log('📡 Lista de estudiantes:', data);
         return { success: true, data, status: res.status };
     },
 
-    async getDocentes() {
-        console.log('🔍 Obteniendo lista de docentes...');
-        const res = await requestJSON('GET', '/api/docentes/');
+    async getDocentes(excludeId = null) {
+        console.log(`🔍 Obteniendo lista de docentes (Excluir: ${excludeId})...`);
+        const query = excludeId ? `?exclude_id=${excludeId}` : '';
+        const res = await requestJSON('GET', `/api/docentes/${query}`);
         const data = Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data);
-        console.log('📡 Lista de docentes:', data);
         return { success: true, data, status: res.status };
     },
 
-    async getEgresados() {
-        console.log('🔍 Obteniendo lista de egresados...');
-        const res = await requestJSON('GET', '/api/egresados/');
+    async getEgresados(excludeId = null) {
+        console.log(`🔍 Obteniendo lista de egresados (Excluir: ${excludeId})...`);
+        const query = excludeId ? `?exclude_id=${excludeId}` : '';
+        const res = await requestJSON('GET', `/api/egresados/${query}`);
         const data = Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data);
-        console.log('📡 Lista de egresados:', data);
         return { success: true, data, status: res.status };
     },
 
@@ -343,8 +343,8 @@ export const apiService = {
     async getPerfil(tipo, id) {
         console.log(`🔍 Obteniendo perfil: ${tipo} ID: ${id}`);
         if (tipo === 'estudiante') return this.getPerfilEstudiante(id);
-        if (tipo === 'docente')    return this.getPerfilDocente(id);
-        if (tipo === 'egresado')   return this.getPerfilEgresado(id);
+        if (tipo === 'docente')    return this.getPerfilDocente(id);
+        if (tipo === 'egresado')   return this.getPerfilEgresado(id);
         throw new Error('Tipo de perfil no válido');
     },
 
@@ -406,12 +406,13 @@ export const apiService = {
         return { success: true, data, status: res.status };
     },
 
-    /* ---------- Buscar por correo (Mantenido para registros/verificación) ---------- */
+    /* ---------- Buscar por correo (Mantenido) ---------- */
     async buscarPerfilPorCorreo(correo) {
         console.log(`🔍 Buscando perfil por correo: ${correo}`);
 
         try {
-            const est = await this.getEstudiantes();
+            // Nota: Aquí se usa getEstudiantes sin excludeId porque el propósito es buscar *todos* los perfiles por email.
+            const est = await this.getEstudiantes(); 
             const e = (est.data || []).find(x =>
                 x.correo_institucional && x.correo_institucional.toLowerCase() === correo.toLowerCase()
             );
@@ -459,7 +460,8 @@ export const apiService = {
         return { success: false, message: `No se encontró ningún ${tipo} con este correo` };
     },
 
-    /* ---------- Health ---------- */
+    /* ---------- Health, Email, Matches (Mantenido) ---------- */
+
     async checkServerStatus() {
         console.log('🔍 Verificando estado del servidor...');
         try {
@@ -471,14 +473,11 @@ export const apiService = {
         }
     },
 
-    /* ---------- EMAIL: generar / verificar / estado / reenviar ---------- */
-
     async emailGenerarCodigo(email, purpose = 'signup', tipo = 'estudiante', perfil_id = null) {
         const res = await requestJSON('POST', '/api/email/request_code/', { email, purpose, tipo, perfil_id });
         return { success: true, ...(res.data || {}), status: res.status, message: res.message };
     },
 
-    // ⬇️ Reenviar código de verificación
     async resendCode(email, userType) {
         console.log(`🔄 Reenviando código para: ${email}, tipo: ${userType}`);
         const res = await requestJSON('POST', '/api/email/request_code/', {
@@ -500,7 +499,6 @@ export const apiService = {
         return { success: true, ...(res.data || {}), status: res.status, message: res.message };
     },
     
-    // ⬇️ Alias
     async verifyCode(email, code) {
         return this.emailVerificarCodigo({ email, code });
     },
@@ -592,40 +590,6 @@ export const apiService = {
         }
     },
 
-    /* ---------- Solicitud/Verificación de Código ---------- */
-    async solicitarCodigoVerificacion(email) {
-        console.log(`📧 Solicitando código de verificación para: ${email}`);
-        try {
-            const res = await requestJSON('POST', '/api/email/request_code/', { email: email, purpose: 'login' });
-            console.log('📡 Respuesta solicitarCodigoVerificacion:', res);
-            return { success: true, message: res.message || 'Código de verificación enviado', data: res.data, status: res.status };
-        } catch (error) {
-            console.error('❌ Error en solicitarCodigoVerificacion:', error);
-            return { success: false, message: error.message || 'Error al solicitar código de verificación', status: error.status };
-        }
-    },
-
-    async verificarCodigo(email, code) {
-        console.log(`🔐 Verificando código para: ${email}`);
-        try {
-            const res = await requestJSON('POST', '/api/email/verify_code/', { email: email, code: code });
-            console.log('📡 Respuesta verificarCodigo:', res);
-            if (res.success) {
-                const perfilResult = await this.buscarPerfilPorCorreo(email);
-                if (perfilResult.success) {
-                    return { success: true, message: '¡Código verificado exitosamente!', tipo: perfilResult.tipo, id: perfilResult.id, data: perfilResult.data };
-                } else {
-                    return { success: false, message: 'Código verificado pero no se encontró el perfil' };
-                }
-            } else {
-                return { success: false, message: res.message || 'Código inválido' };
-            }
-        } catch (error) {
-            console.error('❌ Error en verificarCodigo:', error);
-            return { success: false, message: error.message || 'Error al verificar el código', status: error.status };
-        }
-    },
-
     /* ---------- NUEVO: actualizar solo la foto del estudiante ---------- */
     async updateEstudianteFoto(estudianteId, file) {
         if (!estudianteId || !file) throw new Error('Se requiere estudianteId y un archivo de imagen');
@@ -636,7 +600,7 @@ export const apiService = {
         return {
             success: true,
             message: res.message || 'Foto actualizada correctamente',
-            data: res.data,   // debería incluir { foto: '/media/estudiantes/xxx.jpg' }
+            data: res.data,  // debería incluir { foto: '/media/estudiantes/xxx.jpg' }
             status: res.status,
         };
     },
