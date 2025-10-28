@@ -1,0 +1,47 @@
+/* src/components/AppHeader.css */
+/* Header fijo con blur */
+.premium-header{
+  position: fixed; top: 0; left: 0; right: 0;
+  background: rgba(15,15,15,0.9);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  z-index: 1000; padding: 12px 0; width: 100%;
+}
+.header-content{
+  max-width: 1400px; margin: 0 auto; padding: 0 4px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.logo-section{ display: flex; align-items: center; gap: 20px; }
+.logo-link{ display: inline-flex; align-items: center; }
+.site-logo{ width: 40px; height: 40px; object-fit: contain; }
+.site-title{
+  background: linear-gradient(135deg,#ffffff,#a8b2d1);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; margin: 0;
+  font-size: 2rem; font-weight: 700;
+}
+
+/* Botones del header */
+.nav-actions{ display: flex; gap: 10px; }
+.nav-btn{
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 16px; border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #fff; cursor: pointer; transition: all .2s ease; font-weight: 600;
+}
+.nav-btn:hover{
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.2);
+}
+
+/* Variante visual para cerrar sesión */
+.logout-nav-btn{
+  background: rgba(255,165,0,0.1);
+  border-color: rgba(255,165,0,0.3);
+  color: #ffaa00;
+}
+.logout-nav-btn:hover{
+  background: rgba(255,165,0,0.2);
+  border-color: #ffaa00;
+}
