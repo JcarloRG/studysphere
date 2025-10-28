@@ -1,4 +1,4 @@
-// src/components/Comunidad.jsx (FILTRO DE RESPALDO AÑADIDO)
+// src/components/Comunidad.jsx (FILTRO DE RESPALDO AÑADIDO Y COMPLETO)
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -105,7 +105,16 @@ const Comunidad = () => {
     
     // COLABORACIÓN (Mantenido)
     const handleColaborar = async (perfil) => {
-        // ... (Lógica de colaboración) ...
+        try {
+            setLastCollaboratedUser(perfil);
+            setShowCollaborationModal(true);
+            setColaboraciones((prev) => [...prev, perfil]);
+        } catch (error) {
+            setError('Error al enviar solicitud de colaboración');
+        }
+        if (viewMode === 'descubrir') {
+            siguientePerfil();
+        }
     };
 
     const handlePass = () => siguientePerfil();
@@ -176,10 +185,12 @@ const Comunidad = () => {
                         <h1>StudySphere</h1>
                     </div>
                     <nav className="nav-actions">
-                        <Link to="/mi-perfil" className="nav-btn profile-nav-btn">
+                        {/* 🌟 ENLACE AL PERFIL PROPIO (PERFIL_VISTA) 🌟 */}
+                        <Link to={currentUserId ? `/Perfil/${currentUserType}/${currentUserId}` : "/"} className="nav-btn profile-nav-btn">
                             <span className="btn-icon">👤</span>
                             <span>Mi Perfil</span>
                         </Link>
+                        {/* ------------------------------------------- */}
                     </nav>
                 </div>
             </header>
@@ -435,9 +446,7 @@ const Comunidad = () => {
                                             </div>
 
                                             <div className="member-actions">
-                                                { /* Enlace al perfil vista */ }
                                                 <Link to={`/perfil_vista/${p.tipo}/${p.id}`} className="profile-link">Ver Perfil Completo</Link>
-                                                
                                                 <a href={`mailto:${p.correo_institucional}`} className="contact-btn">✉️ Contactar</a>
                                                 <button className="match-btn" onClick={() => handleColaborar(p)}>🤝 Colaborar</button>
                                             </div>
