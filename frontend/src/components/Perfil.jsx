@@ -26,24 +26,72 @@ const Perfil = () => {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  // --- Mensajería (UI local) ---
-  const [messages, setMessages] = useState([
-    { id: 1, from: 'them', text: '¡Hola! 👋' }
-  ]);
-  const [msgText, setMsgText] = useState('');
-  const msgEndRef = useRef(null);
-  useEffect(() => { msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
-
   const { currentUserId, currentUserType, isAdmin } = useAuth();
   const perfilId = Number(id);
   const isOwner = perfilId === currentUserId && tipo === currentUserType;
 
+  // ===== Centro de Notificaciones (UI local) =====
+  const [notifFilter, setNotifFilter] = useState('all'); // all | match | system
+  const [notifs, setNotifs] = useState([
+    {
+      id: 101,
+      type: 'match', // 'match' | 'system' | 'message'
+      title: '¡Nuevo match de proyecto!',
+      description: '“Clasificador COVID-19 con Random Forest” busca un perfil como el tuyo.',
+      time: 'Hace 2 min',
+      read: false,
+      ctaLabel: 'Ver proyecto',
+      ctaPath: '/proyectos/busqueda?match=101'
+    },
+    {
+      id: 102,
+      type: 'system',
+      title: 'Verificación de correo completada',
+      description: 'Tu correo institucional ya fue verificado correctamente.',
+      time: 'Hoy, 10:15',
+      read: false
+    },
+    {
+      id: 103,
+      type: 'match',
+      title: 'Invitación a equipo',
+      description: 'Docente “F. Torres” te invitó a unirte al equipo de Redes (WAN).',
+      time: 'Ayer',
+      read: true,
+      ctaLabel: 'Revisar invitación',
+      ctaPath: '/comunidad?inv=103'
+    }
+  ]);
+
+  const unreadCount = notifs.filter(n => !n.read).length;
+
+  const markRead = (id) => {
+    setNotifs(prev => prev.map(n => (n.id === id ? { ...n, read: true } : n)));
+  };
+
+  const markAllRead = () => {
+    setNotifs(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const clearRead = () => {
+    setNotifs(prev => prev.filter(n => !n.read));
+  };
+
+  const filteredNotifs = notifs.filter(n => {
+    if (notifFilter === 'all') return true;
+    if (notifFilter === 'match') return n.type === 'match';
+    if (notifFilter === 'system') return n.type === 'system';
+    return true;
+  });
+
+  // Helper URL media
   const buildMediaUrl = (rel) => {
     if (!rel) return null;
     const host = API_BASE_URL.replace(/\/api\/?$/, '');
     return rel.startsWith('http') ? rel : `${host}${rel}`;
   };
 
+  // Carga de perfil
   useEffect(() => {
     const cargarPerfil = async () => {
       try {
@@ -123,16 +171,6 @@ const Perfil = () => {
       setIsUploading(false);
       if (e.target) e.target.value = '';
     }
-  };
-
-  // Mensajería
-  const handleSendMessage = async () => {
-    const txt = msgText.trim();
-    if (!txt) return;
-    setMessages((prev) => [...prev, { id: Date.now(), from: 'me', text: txt }]);
-    setMsgText('');
-    // Conectar a backend aquí si ya tienes endpoint:
-    // await apiService.sendMensaje({ toTipo: tipo, toId: id, text: txt });
   };
 
   // Contenido por pestaña
@@ -234,47 +272,93 @@ const Perfil = () => {
             </div>
           </div>
 
-          {/* ====== Mensajería (ocupa el espacio azul) ====== */}
-          <section className="mensajeria-card">
-            <div className="mensajeria-header">
-              <h3 className="mensajeria-title">💬 Mensajería</h3>
-              <p className="mensajeria-subtitle">
-                {isOwner
-                  ? 'Tu bandeja con este estilo (demo local).'
-                  : `Envía un mensaje a ${perfil.nombre_completo}`}
-              </p>
-            </div>
-
-            <div className="mensajeria-body">
-              <div className="mensajeria-thread">
-                {messages.map((m) => (
-                  <div key={m.id} className={`msg-item ${m.from === 'me' ? 'msg-me' : 'msg-them'}`}>
-                    <div className="msg-bubble">
-                      <p>{m.text}</p>
-                    </div>
-                  </div>
-                ))}
-                <div ref={msgEndRef} />
+          {/* ====== Centro de Notificaciones ====== */}
+          <section className="notifs-card">
+            <div className="notifs-header">
+              <div className="notifs-header-left">
+                <h3 className="notifs-title">🔔 Centro de Notificaciones</h3>
+                <span className={`badge ${unreadCount ? 'badge--active' : ''}`}>
+                  {unreadCount} sin leer
+                </span>
+              </div>
+              <div className="notifs-actions">
+                <button className="btn-ghost" onClick={markAllRead} disabled={!unreadCount}>
+                  Marcar todo leído
+                </button>
+                <button
+                  className="btn-ghost danger"
+                  onClick={clearRead}
+                  disabled={notifs.filter(n => n.read).length === 0}
+                >
+                  Limpiar leídos
+                </button>
               </div>
             </div>
 
-            <div className="mensajeria-input-row">
-              <input
-                type="text"
-                placeholder="Escribe un mensaje..."
-                value={msgText}
-                onChange={(e) => setMsgText(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                className="mensajeria-input"
-              />
+            <div className="notifs-filters">
               <button
-                type="button"
-                className="mensajeria-send-btn"
-                onClick={handleSendMessage}
-                disabled={!msgText.trim()}
+                className={`pill ${notifFilter === 'all' ? 'pill--active' : ''}`}
+                onClick={() => setNotifFilter('all')}
               >
-                Enviar
+                Todos
               </button>
+              <button
+                className={`pill ${notifFilter === 'match' ? 'pill--active' : ''}`}
+                onClick={() => setNotifFilter('match')}
+              >
+                Coincidencias
+              </button>
+              <button
+                className={`pill ${notifFilter === 'system' ? 'pill--active' : ''}`}
+                onClick={() => setNotifFilter('system')}
+              >
+                Sistema
+              </button>
+            </div>
+
+            <div className="notifs-list">
+              {filteredNotifs.length === 0 ? (
+                <div className="notifs-empty">
+                  <p>No hay notificaciones para este filtro.</p>
+                </div>
+              ) : (
+                filteredNotifs.map(n => (
+                  <div
+                    key={n.id}
+                    className={`notif-item ${n.read ? 'read' : 'unread'}`}
+                    onClick={() => !n.read && markRead(n.id)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="notif-icon">
+                      {n.type === 'match' && <span>🎯</span>}
+                      {n.type === 'system' && <span>🛠️</span>}
+                      {n.type === 'message' && <span>✉️</span>}
+                    </div>
+                    <div className="notif-content">
+                      <div className="notif-title-row">
+                        <h4 className="notif-title">{n.title}</h4>
+                        <span className="notif-time">{n.time}</span>
+                      </div>
+                      <p className="notif-desc">{n.description}</p>
+                      <div className="notif-cta-row">
+                        {!n.read && <span className="dot-unread" />}
+                        {n.ctaLabel && (
+                          <button
+                            className="notif-cta"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (n.ctaPath) navigate(n.ctaPath);
+                            }}
+                          >
+                            {n.ctaLabel}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </section>
         </>
@@ -336,10 +420,10 @@ const Perfil = () => {
 
   return (
     <div className="perfil-container">
-      {/* Header reutilizable */}
+      {/* Header */}
       <AppHeader onLogout={handleLogout} onGoCommunity={() => navigate('/comunidad')} />
 
-      {/* ===== Resumen superior ===== */}
+      {/* Resumen superior */}
       <section className="perfil-summary-card">
         <div className="perfil-summary-left">
           <div className="perfil-avatar-wrap perfil-avatar-wrap--summary">
@@ -394,7 +478,7 @@ const Perfil = () => {
         </nav>
       </section>
 
-      {/* ===== Grid principal ===== */}
+      {/* Grid principal */}
       <div className="perfil-grid-layout perfil-grid-layout--pro">
         {/* Columna izquierda */}
         <div className="perfil-content-wrapper">
@@ -451,11 +535,23 @@ const Perfil = () => {
                   <span className="btn-icon">🗑️</span> Eliminar Perfil
                 </button>
               )}
-              
+              {(isOwner || isAdmin) && (
+                <button onClick={handleLogout} className="sidebar-btn logout-btn">
+                  <span className="btn-icon">🚪</span> Cerrar Sesión
+                </button>
+              )}
             </div>
           </div>
 
-          
+          <div className="sidebar-card secondary-actions">
+            <h3 className="sidebar-title">🌐 Conecta y Explora</h3>
+            <Link to="/comunidad" className="sidebar-link-btn">
+              <span className="btn-icon">🔍</span> Explorar Comunidad
+            </Link>
+            <Link to="/registros/estudiantes" className="sidebar-link-btn">
+              <span className="btn-icon">👥</span> Ver Miembros
+            </Link>
+          </div>
         </aside>
       </div>
     </div>
