@@ -420,7 +420,7 @@ const Perfil = () => {
 
   return (
     <div className="perfil-container">
-      {/* Header */}
+      {/* Header - El botón de logout ya está en AppHeader */}
       <AppHeader onLogout={handleLogout} onGoCommunity={() => navigate('/comunidad')} />
 
       {/* Resumen superior */}
@@ -535,23 +535,11 @@ const Perfil = () => {
                   <span className="btn-icon">🗑️</span> Eliminar Perfil
                 </button>
               )}
-              {(isOwner || isAdmin) && (
-                <button onClick={handleLogout} className="sidebar-btn logout-btn">
-                  <span className="btn-icon">🚪</span> Cerrar Sesión
-                </button>
-              )}
+              {/* 🌟 BOTÓN DE CERRAR SESIÓN ELIMINADO - Ya está en AppHeader */}
             </div>
           </div>
 
-          <div className="sidebar-card secondary-actions">
-            <h3 className="sidebar-title">🌐 Conecta y Explora</h3>
-            <Link to="/comunidad" className="sidebar-link-btn">
-              <span className="btn-icon">🔍</span> Explorar Comunidad
-            </Link>
-            <Link to="/registros/estudiantes" className="sidebar-link-btn">
-              <span className="btn-icon">👥</span> Ver Miembros
-            </Link>
-          </div>
+          {/* 🌟 SECCIÓN "CONECTA Y EXPLORA" ELIMINADA - Ya está en AppHeader */}
         </aside>
       </div>
     </div>

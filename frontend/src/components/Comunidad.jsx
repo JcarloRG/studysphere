@@ -1,4 +1,4 @@
-// src/components/Comunidad.jsx (misma interfaz, con soporte de foto real)
+// src/components/Comunidad.jsx (con filtrado completo en todos los modos)
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -93,6 +93,15 @@ const Comunidad = () => {
   const normalizeId = (o) =>
     o?.id ?? o?.estudiante_id ?? o?.docente_id ?? o?.egresado_id ?? o?._id ?? null;
 
+  // 🌟 FUNCIÓN PARA FILTRAR MI PERFIL
+  const filtrarMiPerfil = (perfiles) => {
+    if (!currentUserId || !currentUserType) return perfiles;
+    
+    return perfiles.filter(
+      (p) => !(Number(p.id) === currentUserId && p.tipo === currentUserType)
+    );
+  };
+
   // Cargar comunidad (sin excluir en backend; se filtra en front)
   const cargarComunidad = async () => {
     try {
@@ -127,8 +136,11 @@ const Comunidad = () => {
         })),
       ];
 
-      if (todosLosPerfiles.length) {
-        const shuffled = [...todosLosPerfiles].sort(() => 0.5 - Math.random());
+      // 🌟 FILTRAR MI PERFIL TAMBIÉN EN PERFILES RECOMENDADOS
+      const perfilesFiltrados = filtrarMiPerfil(todosLosPerfiles);
+
+      if (perfilesFiltrados.length) {
+        const shuffled = [...perfilesFiltrados].sort(() => 0.5 - Math.random());
         setPerfilesRecomendados(shuffled);
       } else {
         setPerfilesRecomendados([]);
@@ -195,6 +207,8 @@ const Comunidad = () => {
         })),
       ];
 
+    // 🌟 YA NO NECESITAMOS FILTRAR AQUÍ PORQUE SE HACE EN filtrarMiPerfil
+    // Pero mantenemos el filtro por si acaso
     if (currentUserId && currentUserType) {
       perfiles = perfiles.filter(
         (p) => !(Number(p.id) === currentUserId && p.tipo === currentUserType)
@@ -384,7 +398,7 @@ const Comunidad = () => {
               <div className="empty-state">
                 <div className="empty-icon">🔍</div>
                 <h3>No hay perfiles para mostrar</h3>
-                <p>No se encontraron registros en la base de datos</p>
+                <p>No se encontraron otros perfiles en la comunidad</p>
                 <button onClick={cargarComunidad} className="reload-btn">
                   🔄 Recargar
                 </button>
