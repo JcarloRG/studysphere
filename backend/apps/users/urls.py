@@ -1,4 +1,5 @@
-# apps/users/urls.py
+# En users/urls.py - MODIFICAR el archivo completo
+
 from django.urls import path
 from . import views
 
@@ -27,10 +28,18 @@ urlpatterns = [
     path('api/email/request_code/', views.request_email_code),
     path('api/email/verify_code/', views.verify_email_code),
 
-    # foto estudiante
-    path('api/estudiantes/<int:estudiante_id>/foto/', views.actualizar_foto_estudiante),
+    # ===================== FOTOS - NUEVAS RUTAS =====================
+    # Actualizar fotos
+    path('api/estudiante/<int:estudiante_id>/foto/', views.actualizar_foto_estudiante),
+    path('api/docente/<int:docente_id>/foto/', views.actualizar_foto_docente),
+    path('api/egresado/<int:egresado_id>/foto/', views.actualizar_foto_egresado),
+    
+    # Eliminar fotos (restablecer a default)
+    path('api/estudiante/<int:estudiante_id>/foto/eliminar/', views.eliminar_foto_estudiante),
+    path('api/docente/<int:docente_id>/foto/eliminar/', views.eliminar_foto_docente),
+    path('api/egresado/<int:egresado_id>/foto/eliminar/', views.eliminar_foto_egresado),
 
-    # Nuevas rutas para eliminar registros
+    # Eliminar registros completos
     path('api/estudiante/<int:id>/delete/', views.eliminar_estudiante, name='eliminar_estudiante'),
     path('api/docente/<int:id>/delete/', views.eliminar_docente, name='eliminar_docente'),
     path('api/egresado/<int:id>/delete/', views.eliminar_egresado, name='eliminar_egresado'),

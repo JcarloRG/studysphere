@@ -1,17 +1,17 @@
 // src/components/Perfil.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { apiService, API_BASE_URL } from '../services/api';
 import './Perfil.css';
 import AppHeader from './AppHeader';
 
-// 🌟 Simulación de autenticación
+// 🌟 Simulación de autenticación - ELIMINADO isAdmin
 const useAuth = () => {
   const storedId = localStorage.getItem('currentUserId');
   const storedType = localStorage.getItem('currentUserType');
   const currentUserId = storedId ? Number(storedId) : null;
   const currentUserType = storedType || null;
-  return { currentUserId, currentUserType, isAdmin: currentUserId === 1 };
+  return { currentUserId, currentUserType };
 };
 
 const Perfil = () => {
@@ -26,7 +26,7 @@ const Perfil = () => {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  const { currentUserId, currentUserType, isAdmin } = useAuth();
+  const { currentUserId, currentUserType } = useAuth();
   const perfilId = Number(id);
   const isOwner = perfilId === currentUserId && tipo === currentUserType;
 
@@ -37,7 +37,7 @@ const Perfil = () => {
       id: 101,
       type: 'match', // 'match' | 'system' | 'message'
       title: '¡Nuevo match de proyecto!',
-      description: '“Clasificador COVID-19 con Random Forest” busca un perfil como el tuyo.',
+      description: '"Clasificador COVID-19 con Random Forest" busca un perfil como el tuyo.',
       time: 'Hace 2 min',
       read: false,
       ctaLabel: 'Ver proyecto',
@@ -55,7 +55,7 @@ const Perfil = () => {
       id: 103,
       type: 'match',
       title: 'Invitación a equipo',
-      description: 'Docente “F. Torres” te invitó a unirte al equipo de Redes (WAN).',
+      description: 'Docente "F. Torres" te invitó a unirte al equipo de Redes (WAN).',
       time: 'Ayer',
       read: true,
       ctaLabel: 'Revisar invitación',
@@ -86,7 +86,7 @@ const Perfil = () => {
 
   // Helper URL media
   const buildMediaUrl = (rel) => {
-    if (!rel) return null;
+    if (!rel) return '/static/images/default-avatar.png';
     const host = API_BASE_URL.replace(/\/api\/?$/, '');
     return rel.startsWith('http') ? rel : `${host}${rel}`;
   };
@@ -120,8 +120,13 @@ const Perfil = () => {
     localStorage.removeItem('currentUserType');
     navigate('/');
   };
+
+  // ✅ MANTENIDA función handleEliminar - Solo para el propietario
   const handleEliminar = async () => {
-    if (!window.confirm(`¿Eliminar este perfil de ${tipo}? Esta acción es permanente.`)) return;
+    if (!window.confirm(`¿Estás seguro de que quieres eliminar tu perfil de ${tipo}? Esta acción es permanente y no se puede deshacer.`)) return;
+    
+    if (!window.confirm(`CONFIRMACIÓN FINAL: Esta acción eliminará tu cuenta y todos tus datos permanentemente. ¿Continuar?`)) return;
+    
     try {
       let result;
       if (tipo === 'estudiante') result = await apiService.deleteEstudiante(id);
@@ -130,6 +135,9 @@ const Perfil = () => {
 
       if (result.success) {
         alert('Perfil eliminado exitosamente');
+        // Cerrar sesión y redirigir al inicio
+        localStorage.removeItem('currentUserId');
+        localStorage.removeItem('currentUserType');
         navigate('/');
       } else {
         alert('Error al eliminar el perfil');
@@ -138,6 +146,7 @@ const Perfil = () => {
       alert('Error al eliminar el perfil: ' + err.message);
     }
   };
+
   const handleContactar = () => {
     if (!perfil) return;
     const subject = `Interés en colaborar - ${perfil.nombre_completo}`;
@@ -145,31 +154,97 @@ const Perfil = () => {
     window.location.href = `mailto:${perfil.correo_institucional}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
-  // Foto
+  // ===================== FUNCIONALIDAD MEJORADA DE FOTOS =====================
+
+  // Foto - Funciones mejoradas
   const onPickFile = () => {
-    if (tipo !== 'estudiante' || !isOwner) return;
+    if (!isOwner) return;
     fileInputRef.current?.click();
   };
+
   const onFileChange = async (e) => {
-    if (tipo !== 'estudiante' || !isOwner) return;
+    if (!isOwner) return;
     const file = e.target.files?.[0];
     if (!file) return;
+    
+    // Validaciones
     if (file.size > 3 * 1024 * 1024) {
       alert('La imagen no debe superar 3MB.');
       e.target.value = '';
       return;
     }
+
+    // Validar tipo de archivo
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif'];
+    const fileExt = file.name.toLowerCase().split('.').pop();
+    if (!allowedExtensions.includes('.' + fileExt)) {
+      alert('Solo se permiten imágenes JPG, PNG o GIF.');
+      e.target.value = '';
+      return;
+    }
+
     try {
       setIsUploading(true);
-      const res = await apiService.updateEstudianteFoto(id, file);
-      const nuevaRel = res?.data?.foto || res?.data?.data?.foto;
-      if (nuevaRel) setPerfil((prev) => ({ ...prev, foto: nuevaRel }));
+      let result;
+      
+      // Llamar a la API correspondiente según el tipo de usuario
+      if (tipo === 'estudiante') {
+        result = await apiService.updateEstudianteFoto(id, file);
+      } else if (tipo === 'docente') {
+        result = await apiService.updateDocenteFoto(id, file);
+      } else if (tipo === 'egresado') {
+        result = await apiService.updateEgresadoFoto(id, file);
+      }
+
+      if (result.success) {
+        const nuevaFoto = result.data?.foto;
+        if (nuevaFoto) {
+          setPerfil((prev) => ({ ...prev, foto: nuevaFoto }));
+          alert('✅ Foto actualizada correctamente');
+        }
+      } else {
+        alert('❌ Error al actualizar la foto: ' + (result.message || 'Error desconocido'));
+      }
     } catch (err) {
-      alert('Error al actualizar la foto: ' + (err.message || 'desconocido'));
-      console.error('❌ updateEstudianteFoto error:', err);
+      alert('❌ Error al actualizar la foto: ' + (err.message || 'Error de conexión'));
+      console.error('Error actualizando foto:', err);
     } finally {
       setIsUploading(false);
       if (e.target) e.target.value = '';
+    }
+  };
+
+  // Nueva función para eliminar foto
+  const eliminarFoto = async () => {
+    if (!isOwner || !window.confirm('¿Estás seguro de que quieres eliminar tu foto de perfil?')) {
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      let result;
+      
+      // Llamar a la API correspondiente según el tipo de usuario
+      if (tipo === 'estudiante') {
+        result = await apiService.deleteEstudianteFoto(id);
+      } else if (tipo === 'docente') {
+        result = await apiService.deleteDocenteFoto(id);
+      } else if (tipo === 'egresado') {
+        result = await apiService.deleteEgresadoFoto(id);
+      }
+
+      if (result.success) {
+        // Actualizar el estado local para mostrar la imagen por defecto
+        setPerfil((prev) => ({ ...prev, foto: null }));
+        alert('✅ Foto eliminada correctamente');
+      } else {
+        alert('❌ Error al eliminar la foto: ' + (result.message || 'Error desconocido'));
+      }
+    } catch (err) {
+      alert('❌ Error al eliminar la foto: ' + (err.message || 'Error de conexión'));
+      console.error('Error eliminando foto:', err);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -411,32 +486,46 @@ const Perfil = () => {
   if (loading) return <div className="perfil-container" />;
   if (error || !perfil) return <div className="perfil-container" />;
 
-  const finalAvatarUrl =
-    tipo === 'estudiante'
-      ? perfil?.foto
-        ? buildMediaUrl(perfil.foto)
-        : '/avatar-default.png'
-      : '/avatar-default.png';
+  const finalAvatarUrl = buildMediaUrl(perfil.foto);
 
   return (
     <div className="perfil-container">
-      {/* Header - El botón de logout ya está en AppHeader */}
-      <AppHeader onLogout={handleLogout} onGoCommunity={() => navigate('/comunidad')} />
+      {/* ✅ CAMBIO: Solo pasar handleLogout si es el propietario */}
+      <AppHeader 
+        onLogout={isOwner ? handleLogout : null} 
+        onGoCommunity={() => navigate('/comunidad')} 
+      />
 
       {/* Resumen superior */}
       <section className="perfil-summary-card">
         <div className="perfil-summary-left">
           <div className="perfil-avatar-wrap perfil-avatar-wrap--summary">
             <img src={finalAvatarUrl} alt="Foto de perfil" className="perfil-avatar perfil-avatar--lg" />
-            {tipo === 'estudiante' && isOwner && (
-              <button
-                className={`mini-btn ${isUploading ? 'disabled' : ''}`}
-                onClick={onPickFile}
-                disabled={isUploading}
-              >
-                {isUploading ? 'Subiendo...' : 'Cambiar foto'}
-              </button>
+            
+            {/* Botones de gestión de foto - SOLO para el propietario */}
+            {isOwner && (
+              <div className="avatar-actions">
+                <button
+                  className={`mini-btn ${isUploading ? 'disabled' : ''}`}
+                  onClick={onPickFile}
+                  disabled={isUploading}
+                >
+                  {isUploading ? '📤 Subiendo...' : '📷 Cambiar'}
+                </button>
+                
+                {/* Mostrar botón eliminar solo si tiene foto personalizada */}
+                {perfil.foto && (
+                  <button
+                    className="mini-btn btn-danger"
+                    onClick={eliminarFoto}
+                    disabled={isUploading}
+                  >
+                    🗑️ Eliminar
+                  </button>
+                )}
+              </div>
             )}
+            
             <input
               ref={fileInputRef}
               type="file"
@@ -525,21 +614,21 @@ const Perfil = () => {
                   <span className="btn-icon">✉️</span> Contactar
                 </button>
               )}
-              {(isOwner || isAdmin) && (
-                <button onClick={handleEditar} className="sidebar-btn editar-btn">
-                  <span className="btn-icon">✏️</span> Editar Perfil
-                </button>
+              
+              {/* ✅ OPCIONES PARA EL PROPIETARIO */}
+              {isOwner && (
+                <>
+                  <button onClick={handleEditar} className="sidebar-btn editar-btn">
+                    <span className="btn-icon">✏️</span> Editar Perfil
+                  </button>
+                  {/* ✅ BOTÓN ELIMINAR PERFIL - SOLO PARA PROPIETARIO */}
+                  <button onClick={handleEliminar} className="sidebar-btn eliminar-btn">
+                    <span className="btn-icon">🗑️</span> Eliminar Perfil
+                  </button>
+                </>
               )}
-              {(isOwner || isAdmin) && (
-                <button onClick={handleEliminar} className="sidebar-btn eliminar-btn">
-                  <span className="btn-icon">🗑️</span> Eliminar Perfil
-                </button>
-              )}
-              {/* 🌟 BOTÓN DE CERRAR SESIÓN ELIMINADO - Ya está en AppHeader */}
             </div>
           </div>
-
-          {/* 🌟 SECCIÓN "CONECTA Y EXPLORA" ELIMINADA - Ya está en AppHeader */}
         </aside>
       </div>
     </div>

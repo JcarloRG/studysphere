@@ -160,7 +160,7 @@ const VerificationCode = () => {
             setShowCancelModal(false);
             
             if (result.success) {
-                setMessage('✅ Registro cancelado exitosamente. Todos los datos han sido eliminados de la base de datos.');
+                setMessage('✅ Registro cancelado exitosamente. Todos los datos han sido eliminadoS.');
                 setMessageType('success');
                 
                 setTimeout(() => {
@@ -286,7 +286,7 @@ const VerificationCode = () => {
                             <h3>¿Cancelar Registro?</h3>
                         </div>
                         <div className="modal-body-custom">
-                            <p>¿Estás seguro de que quieres cancelar el registro? <strong>Se eliminarán permanentemente todos los datos ingresados de la base de datos</strong> y deberás comenzar de nuevo.</p>
+                            <p>¿Estás seguro de que quieres cancelar el registro? <strong>Se eliminarán permanentemente todos los datos ingresados</strong> y deberás comenzar de nuevo.</p>
                         </div>
                         <div className="modal-actions-custom">
                             <button 

@@ -847,14 +847,14 @@ def perfil_egresado(request, egresado_id):
         return json_err(str(e), 500)
 
 
-# ===================== FOTO ESTUDIANTE =====================
+# ===================== FOTO DE USUARIOS =====================
+
+# ===================== ACTUALIZAR FOTOS =====================
 
 @csrf_exempt
 def actualizar_foto_estudiante(request, estudiante_id):
     """
     POST multipart/form-data con campo 'foto'
-    Guarda la imagen en /media/estudiantes/<archivo> y actualiza estudiantes.foto
-    Devuelve { foto: "/media/estudiantes/..." }
     """
     opt = allow_options(request)
     if opt: return opt
@@ -870,25 +870,266 @@ def actualizar_foto_estudiante(request, estudiante_id):
         if foto.size > 3 * 1024 * 1024:
             return json_err('La imagen no debe superar 3MB.', 400)
 
+        # Validar tipo de archivo
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif']
+        file_ext = os.path.splitext(foto.name)[1].lower()
+        if file_ext not in allowed_extensions:
+            return json_err('Solo se permiten imágenes JPG, PNG o GIF.', 400)
+
         # Guardar archivo
         fs = _estudiante_media_storage()
-        # nombre único
         base, ext = os.path.splitext(foto.name)
         safe_name = f"est_{estudiante_id}_{int(datetime.now().timestamp())}{ext.lower()}"
         filename = fs.save(safe_name, foto)
-        rel_url = fs.url(filename)  # p.ej. "/media/estudiantes/est_1_...jpg"
+        rel_url = fs.url(filename)
 
         # Actualizar BD
         conn = db_conn()
         cur = conn.cursor()
         cur.execute("UPDATE estudiantes SET foto=%s WHERE id=%s", (rel_url, estudiante_id))
         conn.commit()
-        cur.close(); conn.close()
+        cur.close()
+        conn.close()
 
-        return json_ok({'foto': rel_url}, 'Foto actualizada', 200)
+        return json_ok({'foto': rel_url}, 'Foto actualizada correctamente', 200)
 
     except Exception as e:
         print("❌ actualizar_foto_estudiante error:", str(e))
+        return json_err(f'Error interno: {str(e)}', 500)
+
+@csrf_exempt
+def actualizar_foto_docente(request, docente_id):
+    """
+    POST multipart/form-data con campo 'foto'
+    """
+    opt = allow_options(request)
+    if opt: return opt
+
+    if request.method != 'POST':
+        return json_err('Método no permitido. Usa POST.', 405)
+
+    try:
+        if 'foto' not in request.FILES:
+            return json_err('Archivo "foto" no enviado', 400)
+
+        foto = request.FILES['foto']
+        if foto.size > 3 * 1024 * 1024:
+            return json_err('La imagen no debe superar 3MB.', 400)
+
+        # Validar tipo de archivo
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif']
+        file_ext = os.path.splitext(foto.name)[1].lower()
+        if file_ext not in allowed_extensions:
+            return json_err('Solo se permiten imágenes JPG, PNG o GIF.', 400)
+
+        # Guardar archivo
+        fs = _docente_media_storage()
+        base, ext = os.path.splitext(foto.name)
+        safe_name = f"doc_{docente_id}_{int(datetime.now().timestamp())}{ext.lower()}"
+        filename = fs.save(safe_name, foto)
+        rel_url = fs.url(filename)
+
+        # Actualizar BD
+        conn = db_conn()
+        cur = conn.cursor()
+        cur.execute("UPDATE docentes SET foto=%s WHERE id=%s", (rel_url, docente_id))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return json_ok({'foto': rel_url}, 'Foto actualizada correctamente', 200)
+
+    except Exception as e:
+        print("❌ actualizar_foto_docente error:", str(e))
+        return json_err(f'Error interno: {str(e)}', 500)
+
+@csrf_exempt
+def actualizar_foto_egresado(request, egresado_id):
+    """
+    POST multipart/form-data con campo 'foto'
+    """
+    opt = allow_options(request)
+    if opt: return opt
+
+    if request.method != 'POST':
+        return json_err('Método no permitido. Usa POST.', 405)
+
+    try:
+        if 'foto' not in request.FILES:
+            return json_err('Archivo "foto" no enviado', 400)
+
+        foto = request.FILES['foto']
+        if foto.size > 3 * 1024 * 1024:
+            return json_err('La imagen no debe superar 3MB.', 400)
+
+        # Validar tipo de archivo
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif']
+        file_ext = os.path.splitext(foto.name)[1].lower()
+        if file_ext not in allowed_extensions:
+            return json_err('Solo se permiten imágenes JPG, PNG o GIF.', 400)
+
+        # Guardar archivo
+        fs = _egresado_media_storage()
+        base, ext = os.path.splitext(foto.name)
+        safe_name = f"egr_{egresado_id}_{int(datetime.now().timestamp())}{ext.lower()}"
+        filename = fs.save(safe_name, foto)
+        rel_url = fs.url(filename)
+
+        # Actualizar BD
+        conn = db_conn()
+        cur = conn.cursor()
+        cur.execute("UPDATE egresados SET foto=%s WHERE id=%s", (rel_url, egresado_id))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return json_ok({'foto': rel_url}, 'Foto actualizada correctamente', 200)
+
+    except Exception as e:
+        print("❌ actualizar_foto_egresado error:", str(e))
+        return json_err(f'Error interno: {str(e)}', 500)
+
+# ===================== ELIMINAR FOTOS =====================
+
+@csrf_exempt
+def eliminar_foto_estudiante(request, estudiante_id):
+    """
+    POST para eliminar foto de estudiante (restablecer a default)
+    """
+    opt = allow_options(request)
+    if opt: return opt
+
+    if request.method != 'POST':
+        return json_err('Método no permitido. Usa POST.', 405)
+
+    try:
+        conn = db_conn()
+        cur = conn.cursor()
+        
+        # Obtener la foto actual para eliminarla del sistema de archivos
+        cur.execute("SELECT foto FROM estudiantes WHERE id=%s", (estudiante_id,))
+        result = cur.fetchone()
+        
+        if result and result[0]:
+            foto_actual = result[0]
+            # Eliminar archivo físico si existe
+            try:
+                if foto_actual.startswith('/media/'):
+                    file_path = os.path.join(settings.MEDIA_ROOT, foto_actual.replace('/media/', ''))
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                        print(f"🗑️ Archivo eliminado: {file_path}")
+            except Exception as file_error:
+                print(f"⚠️ Error eliminando archivo: {file_error}")
+
+        # Actualizar BD para establecer foto como NULL (usará default-avatar.png)
+        cur.execute("UPDATE estudiantes SET foto=NULL WHERE id=%s", (estudiante_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return json_ok(
+            {'foto': '/static/images/default-avatar.png'}, 
+            'Foto eliminada. Se ha restablecido la imagen por defecto.', 
+            200
+        )
+
+    except Exception as e:
+        print("❌ eliminar_foto_estudiante error:", str(e))
+        return json_err(f'Error interno: {str(e)}', 500)
+
+@csrf_exempt
+def eliminar_foto_docente(request, docente_id):
+    """
+    POST para eliminar foto de docente (restablecer a default)
+    """
+    opt = allow_options(request)
+    if opt: return opt
+
+    if request.method != 'POST':
+        return json_err('Método no permitido. Usa POST.', 405)
+
+    try:
+        conn = db_conn()
+        cur = conn.cursor()
+        
+        # Obtener la foto actual para eliminarla del sistema de archivos
+        cur.execute("SELECT foto FROM docentes WHERE id=%s", (docente_id,))
+        result = cur.fetchone()
+        
+        if result and result[0]:
+            foto_actual = result[0]
+            # Eliminar archivo físico si existe
+            try:
+                if foto_actual.startswith('/media/'):
+                    file_path = os.path.join(settings.MEDIA_ROOT, foto_actual.replace('/media/', ''))
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                        print(f"🗑️ Archivo eliminado: {file_path}")
+            except Exception as file_error:
+                print(f"⚠️ Error eliminando archivo: {file_error}")
+
+        # Actualizar BD para establecer foto como NULL
+        cur.execute("UPDATE docentes SET foto=NULL WHERE id=%s", (docente_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return json_ok(
+            {'foto': '/static/images/default-avatar.png'}, 
+            'Foto eliminada. Se ha restablecido la imagen por defecto.', 
+            200
+        )
+
+    except Exception as e:
+        print("❌ eliminar_foto_docente error:", str(e))
+        return json_err(f'Error interno: {str(e)}', 500)
+
+@csrf_exempt
+def eliminar_foto_egresado(request, egresado_id):
+    """
+    POST para eliminar foto de egresado (restablecer a default)
+    """
+    opt = allow_options(request)
+    if opt: return opt
+
+    if request.method != 'POST':
+        return json_err('Método no permitido. Usa POST.', 405)
+
+    try:
+        conn = db_conn()
+        cur = conn.cursor()
+        
+        # Obtener la foto actual para eliminarla del sistema de archivos
+        cur.execute("SELECT foto FROM egresados WHERE id=%s", (egresado_id,))
+        result = cur.fetchone()
+        
+        if result and result[0]:
+            foto_actual = result[0]
+            # Eliminar archivo físico si existe
+            try:
+                if foto_actual.startswith('/media/'):
+                    file_path = os.path.join(settings.MEDIA_ROOT, foto_actual.replace('/media/', ''))
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                        print(f"🗑️ Archivo eliminado: {file_path}")
+            except Exception as file_error:
+                print(f"⚠️ Error eliminando archivo: {file_error}")
+
+        # Actualizar BD para establecer foto como NULL
+        cur.execute("UPDATE egresados SET foto=NULL WHERE id=%s", (egresado_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return json_ok(
+            {'foto': '/static/images/default-avatar.png'}, 
+            'Foto eliminada. Se ha restablecido la imagen por defecto.', 
+            200
+        )
+
+    except Exception as e:
+        print("❌ eliminar_foto_egresado error:", str(e))
         return json_err(f'Error interno: {str(e)}', 500)
 
 

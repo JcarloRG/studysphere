@@ -636,17 +636,78 @@ async cancelRegistration(email, tipo) {
         }
     },
 
-    /* ---------- NUEVO: actualizar solo la foto del estudiante ---------- */
+    /* ===================== MÉTODOS DE FOTOS ===================== */
+
+    // Actualizar fotos
     async updateEstudianteFoto(estudianteId, file) {
-        if (!estudianteId || !file) throw new Error('Se requiere estudianteId y un archivo de imagen');
-        const form = new FormData();
-        form.append('foto', file);
-        // Endpoint nuevo del backend: POST /api/estudiantes/<id>/foto/
-        const res = await requestMultipart('POST', `/api/estudiantes/${estudianteId}/foto/`, form);
+        console.log(`📸 Actualizando foto de estudiante ID: ${estudianteId}`);
+        const formData = new FormData();
+        formData.append('foto', file);
+        const res = await requestMultipart('POST', `/api/estudiante/${estudianteId}/foto/`, formData);
         return {
             success: true,
             message: res.message || 'Foto actualizada correctamente',
-            data: res.data,  // debería incluir { foto: '/media/estudiantes/xxx.jpg' }
+            data: res.data,
+            status: res.status,
+        };
+    },
+
+    async updateDocenteFoto(docenteId, file) {
+        console.log(`📸 Actualizando foto de docente ID: ${docenteId}`);
+        const formData = new FormData();
+        formData.append('foto', file);
+        const res = await requestMultipart('POST', `/api/docente/${docenteId}/foto/`, formData);
+        return {
+            success: true,
+            message: res.message || 'Foto actualizada correctamente',
+            data: res.data,
+            status: res.status,
+        };
+    },
+
+    async updateEgresadoFoto(egresadoId, file) {
+        console.log(`📸 Actualizando foto de egresado ID: ${egresadoId}`);
+        const formData = new FormData();
+        formData.append('foto', file);
+        const res = await requestMultipart('POST', `/api/egresado/${egresadoId}/foto/`, formData);
+        return {
+            success: true,
+            message: res.message || 'Foto actualizada correctamente',
+            data: res.data,
+            status: res.status,
+        };
+    },
+
+    // Eliminar fotos
+    async deleteEstudianteFoto(estudianteId) {
+        console.log(`🗑️ Eliminando foto de estudiante ID: ${estudianteId}`);
+        const res = await requestJSON('POST', `/api/estudiante/${estudianteId}/foto/eliminar/`);
+        return {
+            success: true,
+            message: res.message || 'Foto eliminada correctamente',
+            data: res.data,
+            status: res.status,
+        };
+    },
+
+    async deleteDocenteFoto(docenteId) {
+        console.log(`🗑️ Eliminando foto de docente ID: ${docenteId}`);
+        const res = await requestJSON('POST', `/api/docente/${docenteId}/foto/eliminar/`);
+        return {
+            success: true,
+            message: res.message || 'Foto eliminada correctamente',
+            data: res.data,
+            status: res.status,
+        };
+    },
+
+    async deleteEgresadoFoto(egresadoId) {
+        console.log(`🗑️ Eliminando foto de egresado ID: ${egresadoId}`);
+        const res = await requestJSON('POST', `/api/egresado/${egresadoId}/foto/eliminar/`);
+        return {
+            success: true,
+            message: res.message || 'Foto eliminada correctamente',
+            data: res.data,
             status: res.status,
         };
     },

@@ -32,6 +32,8 @@ class LoginForm(forms.Form):
 # FORMULARIOS EXISTENTES
 # =================================================================
 
+# En users/forms.py - MODIFICAR los formularios existentes
+
 class EstudianteForm(forms.ModelForm):
     class Meta:
         model = Estudiante
@@ -43,7 +45,8 @@ class EstudianteForm(forms.ModelForm):
             'otra_carrera',
             'semestre',
             'habilidades',
-            'area_interes'
+            'area_interes',
+            'foto'  # <-- AGREGAR ESTE CAMPO
         ]
         widgets = {
             'nombre_completo': forms.TextInput(attrs={
@@ -75,6 +78,10 @@ class EstudianteForm(forms.ModelForm):
                 'class': 'form-control',
                 'rows': 3,
                 'placeholder': 'Áreas de interés académico/profesional'
+            }),
+            'foto': forms.FileInput(attrs={  # <-- AGREGAR ESTE WIDGET
+                'class': 'form-control',
+                'accept': 'image/*'
             })
         }
         labels = {
@@ -85,7 +92,8 @@ class EstudianteForm(forms.ModelForm):
             'otra_carrera': '¿Otra Carrera?',
             'semestre': 'Semestre',
             'habilidades': 'Habilidades',
-            'area_interes': 'Área de Interés'
+            'area_interes': 'Área de Interés',
+            'foto': 'Foto de Perfil'  # <-- AGREGAR ESTE LABEL
         }
 
 class DocenteForm(forms.ModelForm):
@@ -95,19 +103,25 @@ class DocenteForm(forms.ModelForm):
             'nombre_completo',
             'correo_institucional',
             'carrera_egreso',
-            'carreras_imparte',
             'grado_academico',
             'habilidades',
-            'logros'
+            'area_interes',
+            'foto'  # <-- AGREGAR ESTE CAMPO
         ]
         widgets = {
             'nombre_completo': forms.TextInput(attrs={'class': 'form-control'}),
             'correo_institucional': forms.EmailInput(attrs={'class': 'form-control'}),
             'carrera_egreso': forms.TextInput(attrs={'class': 'form-control'}),
-            'carreras_imparte': forms.TextInput(attrs={'class': 'form-control'}),
-            'grado_academico': forms.TextInput(attrs={'class': 'form-control'}),
+            'grado_academico': forms.Select(attrs={'class': 'form-control'}),  # Cambiado a Select
             'habilidades': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'logros': forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+            'area_interes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'foto': forms.FileInput(attrs={  # <-- AGREGAR ESTE WIDGET
+                'class': 'form-control',
+                'accept': 'image/*'
+            })
+        }
+        labels = {
+            'foto': 'Foto de Perfil'  # <-- AGREGAR ESTE LABEL
         }
 
 class EgresadoForm(forms.ModelForm):
@@ -118,13 +132,9 @@ class EgresadoForm(forms.ModelForm):
             'correo_institucional',
             'carrera_egreso',
             'anio_egreso',
-            'ocupacion_actual',
-            'perfil_linkedin',
-            'empresa',
-            'puesto',
-            'logros',
             'habilidades',
-            'competencias'
+            'area_interes',
+            'foto'  # <-- AGREGAR ESTE CAMPO
         ]
         widgets = {
             'nombre_completo': forms.TextInput(attrs={'class': 'form-control'}),
@@ -135,11 +145,13 @@ class EgresadoForm(forms.ModelForm):
                 'min': 1900,
                 'max': 2030
             }),
-            'ocupacion_actual': forms.TextInput(attrs={'class': 'form-control'}),
-            'perfil_linkedin': forms.URLInput(attrs={'class': 'form-control'}),
-            'empresa': forms.TextInput(attrs={'class': 'form-control'}),
-            'puesto': forms.TextInput(attrs={'class': 'form-control'}),
-            'logros': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'habilidades': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'competencias': forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+            'area_interes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'foto': forms.FileInput(attrs={  # <-- AGREGAR ESTE WIDGET
+                'class': 'form-control',
+                'accept': 'image/*'
+            })
+        }
+        labels = {
+            'foto': 'Foto de Perfil'  # <-- AGREGAR ESTE LABEL
         }

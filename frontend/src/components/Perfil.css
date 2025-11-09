@@ -585,7 +585,7 @@
 }
 
 .mensajeria-body{
-  height: 280px; /* ocupa ese “espacio azul” */
+  height: 280px; /* ocupa ese "espacio azul" */
   padding: 14px 14px 0;
   overflow: hidden;
 }
@@ -886,4 +886,135 @@
 .notifs-list::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 999px;
+}
+
+/* ===== ESTILOS MEJORADOS PARA LA SECCIÓN DE FOTO DE PERFIL ===== */
+
+.perfil-avatar-wrap--summary {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+/* Foto de perfil más grande */
+.perfil-avatar--lg {
+    width: 120px;  /* Más grande */
+    height: 120px; /* Más grande */
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.2);
+    transition: all 0.3s ease;
+}
+
+.perfil-avatar--lg:hover {
+    border-color: rgba(102, 126, 234, 0.6);
+    box-shadow: 0 6px 25px rgba(102, 126, 234, 0.3);
+}
+
+/* Contenedor de acciones de foto EN FILA */
+.avatar-actions {
+    display: flex;
+    flex-direction: row;  /* Cambiado a fila */
+    gap: 8px;
+    width: 100%;
+    max-width: 200px;
+    justify-content: center;
+}
+
+/* Botones manteniendo estilos originales pero mejorados */
+.mini-btn {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex: 1; /* Para que se expandan igual */
+}
+
+/* Botón Cambiar Foto - Manteniendo estilo original pero mejorado */
+.mini-btn:not(.btn-danger) {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.mini-btn:not(.btn-danger):hover:not(.disabled) {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+/* Botón Eliminar Foto - En rojo */
+.mini-btn.btn-danger {
+    background: rgba(220, 38, 38, 0.1);
+    color: #fca5a5;
+    border: 1px solid rgba(220, 38, 38, 0.3);
+}
+
+.mini-btn.btn-danger:hover:not(.disabled) {
+    background: rgba(220, 38, 38, 0.2);
+    border-color: rgba(220, 38, 38, 0.5);
+    transform: translateY(-2px);
+}
+
+/* Estado deshabilitado */
+.mini-btn.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Efectos de hover mejorados */
+.mini-btn:not(.disabled):hover {
+    filter: brightness(1.1);
+}
+
+/* Responsive para la sección de avatar */
+@media (max-width: 768px) {
+    .perfil-avatar--lg {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .avatar-actions {
+        max-width: 180px;
+    }
+    
+    .mini-btn {
+        padding: 6px 10px;
+        font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .perfil-summary-left {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        text-align: center;
+        gap: 15px;
+    }
+    
+    .perfil-avatar-wrap--summary {
+        order: -1;
+    }
+    
+    .avatar-actions {
+        flex-direction: row;
+        max-width: 200px;
+    }
+    
+    .perfil-avatar--lg {
+        width: 90px;
+        height: 90px;
+    }
 }
