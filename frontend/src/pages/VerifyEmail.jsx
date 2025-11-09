@@ -1,198 +1,220 @@
-import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { apiService } from '../services/api';
-import '../components/forms/FormStyles.css'; // <-- ajusta si es necesario
+import '../components/forms/FormStyles.css';
 
 const VerifyEmail = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+    const [code, setCode] = useState(['', '', '', '', '', '']);
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState('');
+    const [timeLeft, setTimeLeft] = useState(300);
+    const navigate = useNavigate();
+    const location = useLocation();
 
-  // Si vienes desde el formulario, estos valores llegan por state
-  const presetEmail = (location.state?.email || '').toLowerCase();
-  const presetTipo = location.state?.tipo || '';      // 'estudiante' | 'docente' | 'egresado' (opcional)
-  const presetId = location.state?.id || null;        // id del perfil (opcional)
+    // Obtener el email del estado de navegación
+    const email = location.state?.email || 'abigalicabelloarguello@gmail.com';
+    const userData = location.state?.userData;
 
-  const [email, setEmail] = useState(presetEmail);
-  const [code, setCode] = useState('');
-  const [tipo, setTipo] = useState(presetTipo);
-  const [perfilId, setPerfilId] = useState(presetId);
+    useEffect(() => {
+        if (!timeLeft) return;
+        const timerId = setInterval(() => {
+            setTimeLeft(timeLeft - 1);
+        }, 1000);
+        return () => clearInterval(timerId);
+    }, [timeLeft]);
 
-  const [msg, setMsg] = useState('');
-  const [msgType, setMsgType] = useState(''); // 'success' | 'error' | ''
-  const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
+    const formatTime = (seconds) => {
+        const minutes = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+    };
 
-  // Si llegaron valores por state, los bloqueamos para evitar editar el email
-  const emailBloqueado = Boolean(presetEmail);
+    const handleCodeChange = (element, index) => {
+        if (isNaN(element.value)) return false;
 
-  useEffect(() => {
-    // Limpia mensajes al cambiar inputs
-    setMsg('');
-    setMsgType('');
-  }, [email, code]);
+        const newCode = [...code];
+        newCode[index] = element.value;
+        setCode(newCode);
 
-  const normalizaEmail = (v) => (v || '').trim().toLowerCase();
-  const normalizaCode = (v) => (v || '').trim();
+        if (element.value !== '' && element.nextSibling) {
+            element.nextSibling.focus();
+        }
+    };
 
-  const handleResend = async () => {
-    const e = normalizaEmail(email);
-    if (!e) {
-      setMsg('❌ Ingresa tu correo para enviar el código.');
-      setMsgType('error');
-      return;
-    }
+    const handleKeyDown = (e, index) => {
+        if (e.key === 'Backspace' && !e.target.value && e.target.previousSibling) {
+            e.target.previousSibling.focus();
+        }
+    };
 
-    setSending(true);
-    setMsg('');
-    setMsgType('');
+    const handleVerify = async () => {
+        const verificationCode = code.join('');
+        
+        if (verificationCode.length !== 6) {
+            setMessage({ type: 'error', text: 'Por favor ingresa el código completo de 6 dígitos' });
+            return;
+        }
 
-    try {
-      // Puedes pasar también tipo y perfil_id si los tienes para relacionar el registro
-      // (el backend los trata como opcionales)
-      await apiService.emailGenerarCodigo(e, tipo || 'signup', perfilId);
-      setMsg('✅ Código enviado. Revisa tu bandeja (y spam).');
-      setMsgType('success');
-    } catch (err) {
-      console.error('Reenviar código error:', err);
-      const detalle =
-        err?.preview
-          ? `Servidor devolvió HTML (posible error).`
-          : err?.message || 'No se pudo enviar el código.';
-      setMsg(`❌ ${detalle}`);
-      setMsgType('error');
-    } finally {
-      setSending(false);
-    }
-  };
+        setLoading(true);
+        try {
+            const response = await apiService.post('/verify-email', {
+                email,
+                code: verificationCode,
+                userData
+            });
 
-  const handleVerify = async (ev) => {
-    ev.preventDefault();
+            if (response.data.success) {
+                setMessage({ type: 'success', text: '¡Correo verificado exitosamente! Redirigiendo...' });
+                setTimeout(() => navigate('/login'), 2000);
+            }
+        } catch (error) {
+            setMessage({ 
+                type: 'error', 
+                text: error.response?.data?.message || 'Error al verificar el código. Intenta nuevamente.' 
+            });
+        }
+        setLoading(false);
+    };
 
-    const e = normalizaEmail(email);
-    const c = normalizaCode(code);
+    const handleResendCode = async () => {
+        setLoading(true);
+        try {
+            await apiService.post('/resend-verification', { email });
+            setMessage({ type: 'success', text: '¡Código reenviado exitosamente!' });
+            setTimeLeft(300);
+        } catch (error) {
+            setMessage({ 
+                type: 'error', 
+                text: error.response?.data?.message || 'Error al reenviar el código.' 
+            });
+        }
+        setLoading(false);
+    };
 
-    if (!e || !c) {
-      setMsg('❌ Ingresa correo y código.');
-      setMsgType('error');
-      return;
-    }
+    const handleCancelRegistration = () => {
+        if (window.confirm('¿Estás seguro de que quieres cancelar el registro? Se eliminarán todos los datos ingresados.')) {
+            navigate('/register'); // Redirigir al formulario de registro
+        }
+    };
 
-    setLoading(true);
-    setMsg('');
-    setMsgType('');
+    return (
+        <div className="home-container">
+            {/* ✅ HEADER IDÉNTICO AL FORMULARIO DEL ESTUDIANTE */}
+            <div className="background-shapes">
+                <div className="shape shape-1"></div>
+                <div className="shape shape-2"></div>
+                <div className="shape shape-3"></div>
+                <div className="shape shape-4"></div>
+            </div>
 
-    try {
-      const res = await apiService.emailVerificarCodigo({
-        email: e,
-        code: c,
-        // tipo y id no son obligatorios para verificar; si los pasas, mejor
-        tipo: tipo || undefined,
-        id: perfilId || undefined,
-      });
+            {/* HEADER EXACTO COMO EL DEL ESTUDIANTE */}
+            <header className="premium-header">
+                <div className="header-content">
+                    <div className="logo-section">
+                        <img 
+                            src="/logo192.png" 
+                            alt="StudySphere Logo" 
+                            className="site-logo"
+                        />
+                        <h1>StudySphere</h1>
+                    </div>
+                    <nav className="nav-actions">
+                        <button
+                            className="nav-btn profile-nav-btn"
+                            onClick={handleCancelRegistration}
+                            disabled={loading}
+                        >
+                            <span className="btn-icon">✖</span>
+                            <span>Cancelar Registro</span>
+                        </button>
+                    </nav>
+                </div>
+            </header>
 
-      setMsg('✅ Correo verificado correctamente.');
-      setMsgType('success');
+            {/* Sección principal */}
+            <div className="form-section">
+                <div className="form-container-custom">
+                    <div className="form-card-custom">
+                        {/* Header del formulario */}
+                        <div className="form-header-custom">
+                            <span className="form-emoji">📧</span>
+                            <h2>Verificación de Correo</h2>
+                            <p className="form-description-custom">
+                                Hemos enviado un código de 6 dígitos a:<br />
+                                <strong>{email}</strong>
+                            </p>
+                        </div>
 
-      // Si sabemos a dónde regresar, redirigimos al perfil
-      const finalTipo = res?.tipo || tipo;
-      const finalId = res?.perfil_id || perfilId;
+                        {/* Mensajes */}
+                        {message && (
+                            <div className={`message-custom ${message.type}`}>
+                                {message.text}
+                            </div>
+                        )}
 
-      if (finalTipo && finalId) {
-        setTimeout(() => navigate(`/perfil/${finalTipo}/${finalId}`), 1000);
-      }
-    } catch (err) {
-      console.error('Verificar código error:', err);
+                        {/* Sección de verificación */}
+                        <div className="verification-section">
+                            <div className="code-inputs-container">
+                                <label className="code-label">Ingresa el código de verificación:</label>
+                                <div className="code-inputs-group">
+                                    {[0, 1, 2, 3, 4, 5].map((index) => (
+                                        <input
+                                            key={index}
+                                            type="text"
+                                            maxLength="1"
+                                            className="code-input"
+                                            value={code[index]}
+                                            onChange={(e) => handleCodeChange(e.target, index)}
+                                            onKeyDown={(e) => handleKeyDown(e, index)}
+                                            disabled={loading}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
 
-      // Mensaje claro si viene HTML del servidor (p. ej., 400 ó 500 con page)
-      if (err?.preview) {
-        setMsg(
-          `❌ Código inválido o expirado: El servidor devolvió HTML (posible error). (${err.status ? 'HTTP ' + err.status : 'Ver consola'})`
-        );
-        setMsgType('error');
-      } else {
-        setMsg(`❌ ${err?.message || 'Código inválido o expirado.'}`);
-        setMsgType('error');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+                            {/* Timer */}
+                            <div className="timer-section">
+                                <p className="timer-text">
+                                    El código expira en: <strong>{formatTime(timeLeft)}</strong>
+                                </p>
+                            </div>
 
-  return (
-    <div className="form-container">
-      <div className="form-card">
-        <div className="form-header">
-          <h2>📧 Verificar correo electrónico</h2>
-          <p className="form-description">
-            Ingresa el código que te enviamos por correo para activar tu cuenta.
-          </p>
+                            {/* Botones */}
+                            <div className="verification-actions">
+                                <button
+                                    className={`verify-btn ${loading ? 'loading' : ''}`}
+                                    onClick={handleVerify}
+                                    disabled={loading || timeLeft === 0}
+                                >
+                                    {loading && <div className="spinner-custom"></div>}
+                                    {loading ? 'Verificando...' : 'Verificar Código'}
+                                </button>
+
+                                <button
+                                    className="resend-btn"
+                                    onClick={handleResendCode}
+                                    disabled={loading || timeLeft > 240}
+                                >
+                                    Reenviar Código
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Sección de ayuda */}
+                        <div className="help-section">
+                            <h4>¿Problemas con el código?</h4>
+                            <ul>
+                                <li>Revisa tu carpeta de <strong>spam</strong> o <strong>correo no deseado</strong></li>
+                                <li>Asegúrate de haber ingresado el correo correctamente</li>
+                                <li>El código expira en <strong>5 minutos</strong></li>
+                                <li>Si no recibes el código, haz clic en <strong>"Reenviar Código"</strong></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-
-        {msg && <div className={`message ${msgType}`}>{msg}</div>}
-
-        <form onSubmit={handleVerify} className="verify-form">
-          <div className="form-group">
-            <label htmlFor="email" className="required">Correo</label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="tu@correo.com"
-              required
-              disabled={loading || emailBloqueado}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="code" className="required">Código de verificación</label>
-            <input
-              id="code"
-              type="text"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="Ej: 123456"
-              required
-              disabled={loading}
-            />
-          </div>
-
-          <div className="form-actions" style={{ justifyContent: 'space-between' }}>
-            <button
-              type="button"
-              className="back-btn"
-              onClick={() => navigate('/')}
-              disabled={loading || sending}
-            >
-              ← Volver al inicio
-            </button>
-
-            <button
-              type="button"
-              className="submit-btn"
-              onClick={handleResend}
-              disabled={loading || sending}
-              style={{ marginRight: 'auto', marginLeft: '1rem' }}
-            >
-              {sending ? 'Enviando…' : 'Enviar / Reenviar código'}
-            </button>
-
-            <button
-              type="submit"
-              className={`submit-btn ${loading ? 'loading' : ''}`}
-              disabled={loading}
-            >
-              {loading ? 'Verificando…' : '✅ Verificar'}
-            </button>
-          </div>
-        </form>
-
-        <div className="form-footer">
-          <p className="required-note">* Campos obligatorios</p>
-        </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default VerifyEmail;

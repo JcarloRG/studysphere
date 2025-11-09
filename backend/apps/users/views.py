@@ -14,6 +14,130 @@ import traceback # Necesario para tu bloque except
 
 import mysql.connector
 
+# En tu views.py - AGREGAR ESTA VISTA
+@csrf_exempt
+def eliminar_estudiante(request, id):
+    """
+    Endpoint para eliminar estudiante por ID
+    """
+    if request.method == 'POST':
+        try:
+            # Importa tu modelo de Estudiante
+            from .models import Estudiante
+            
+            print(f"🗑️ Intentando eliminar estudiante ID: {id}")
+            
+            # Buscar el estudiante
+            estudiante = Estudiante.objects.get(id=id)
+            email = estudiante.correo_institucional
+            
+            # Eliminar el estudiante
+            estudiante.delete()
+            
+            print(f"✅ Estudiante {email} eliminado exitosamente")
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Estudiante eliminado exitosamente',
+                'email': email
+            })
+            
+        except Estudiante.DoesNotExist:
+            print(f"❌ Estudiante con ID {id} no encontrado")
+            return JsonResponse({
+                'success': False,
+                'message': 'Estudiante no encontrado'
+            }, status=404)
+            
+        except Exception as e:
+            print(f"❌ Error eliminando estudiante: {str(e)}")
+            return JsonResponse({
+                'success': False,
+                'message': f'Error al eliminar estudiante: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({
+        'success': False,
+        'message': 'Método no permitido'
+    }, status=405)
+
+@csrf_exempt
+def eliminar_docente(request, id):
+    """
+    Endpoint para eliminar docente por ID
+    """
+    if request.method == 'POST':
+        try:
+            from .models import Docente
+            
+            print(f"🗑️ Intentando eliminar docente ID: {id}")
+            
+            docente = Docente.objects.get(id=id)
+            email = docente.correo_institucional
+            docente.delete()
+            
+            print(f"✅ Docente {email} eliminado exitosamente")
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Docente eliminado exitosamente',
+                'email': email
+            })
+            
+        except Docente.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'message': 'Docente no encontrado'
+            }, status=404)
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error al eliminar docente: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({
+        'success': False,
+        'message': 'Método no permitido'
+    }, status=405)
+
+@csrf_exempt
+def eliminar_egresado(request, id):
+    """
+    Endpoint para eliminar egresado por ID
+    """
+    if request.method == 'POST':
+        try:
+            from .models import Egresado
+            
+            print(f"🗑️ Intentando eliminar egresado ID: {id}")
+            
+            egresado = Egresado.objects.get(id=id)
+            email = egresado.correo_institucional
+            egresado.delete()
+            
+            print(f"✅ Egresado {email} eliminado exitosamente")
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Egresado eliminado exitosamente',
+                'email': email
+            })
+            
+        except Egresado.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'message': 'Egresado no encontrado'
+            }, status=404)
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error al eliminar egresado: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({
+        'success': False,
+        'message': 'Método no permitido'
+    }, status=405)
 
 # ===================== Health =====================
 

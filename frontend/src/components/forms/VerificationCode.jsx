@@ -10,8 +10,9 @@ const VerificationCode = () => {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [messageType, setMessageType] = useState('');
-    const [timeLeft, setTimeLeft] = useState(300); // 5 minutos
+    const [timeLeft, setTimeLeft] = useState(180);
     const [canResend, setCanResend] = useState(false);
+    const [showCancelModal, setShowCancelModal] = useState(false);
     
     const inputRefs = useRef([]);
     
@@ -23,7 +24,6 @@ const VerificationCode = () => {
             return;
         }
 
-        // Timer para reenvío
         const timer = setInterval(() => {
             setTimeLeft(prev => {
                 if (prev <= 1) {
@@ -45,12 +45,10 @@ const VerificationCode = () => {
         newCode[index] = value;
         setCode(newCode);
 
-        // Auto-focus siguiente input
         if (value && index < 5) {
             inputRefs.current[index + 1].focus();
         }
 
-        // Auto-enviar cuando esté completo
         if (newCode.every(digit => digit !== '') && index === 5) {
             handleSubmit(newCode.join(''));
         }
@@ -90,15 +88,12 @@ const VerificationCode = () => {
         setMessageType('');
 
         try {
-            console.log('🔐 Verificando código para:', email);
-            
             const result = await apiService.verifyCode(email, submittedCode, tipo);
             
             if (result.success) {
                 setMessage('✅ ¡Código verificado exitosamente!');
                 setMessageType('success');
                 
-                // Guardar sesión
                 localStorage.setItem('userEmail', email);
                 localStorage.setItem('userType', tipo);
                 localStorage.setItem('userId', id || result.data?.id);
@@ -106,20 +101,16 @@ const VerificationCode = () => {
                 localStorage.setItem('isLoggedIn', 'true');
                 localStorage.setItem('isVerified', 'true');
 
-                // Redirigir al perfil después de 1.5 segundos
                 setTimeout(() => {
                     navigate(`/perfil/${tipo}/${id || result.data?.id}`);
                 }, 1500);
             } else {
                 setMessage(result.message || '❌ Código incorrecto. Intenta nuevamente.');
                 setMessageType('error');
-                
-                // Limpiar inputs en caso de error
                 setCode(['', '', '', '', '', '']);
                 inputRefs.current[0].focus();
             }
         } catch (error) {
-            console.error('❌ Error en verificación:', error);
             setMessage('❌ Error al verificar el código. Intenta nuevamente.');
             setMessageType('error');
         } finally {
@@ -140,7 +131,7 @@ const VerificationCode = () => {
             if (result.success) {
                 setMessage('✅ ¡Código reenviado! Revisa tu correo.');
                 setMessageType('success');
-                setTimeLeft(300); // Reiniciar timer a 5 minutos
+                setTimeLeft(180);
                 setCanResend(false);
                 setCode(['', '', '', '', '', '']);
                 inputRefs.current[0].focus();
@@ -156,8 +147,71 @@ const VerificationCode = () => {
         }
     };
 
-    const handleBackToHome = () => {
-        navigate('/');
+    const handleCancelClick = () => {
+        setShowCancelModal(true);
+    };
+
+    const handleConfirmCancel = async () => {
+        setLoading(true);
+        try {
+            // ✅ LLAMADA A LA NUEVA API PARA ELIMINAR DE LA BASE DE DATOS
+            const result = await apiService.cancelRegistration(email, tipo);
+            
+            setShowCancelModal(false);
+            
+            if (result.success) {
+                setMessage('✅ Registro cancelado exitosamente. Todos los datos han sido eliminados de la base de datos.');
+                setMessageType('success');
+                
+                setTimeout(() => {
+                    // Redirigir al formulario correspondiente
+                    switch(tipo) {
+                        case 'estudiante':
+                            navigate('/estudiante');
+                            break;
+                        case 'docente':
+                            navigate('/docente');
+                            break;
+                        case 'egresado':
+                            navigate('/egresado');
+                            break;
+                        default:
+                            navigate('/');
+                    }
+                }, 2000);
+            } else {
+                setMessage('⚠️ ' + result.message);
+                setMessageType('error');
+            }
+        } catch (error) {
+            console.error('Error al cancelar registro:', error);
+            setShowCancelModal(false);
+            setMessage('⚠️ Error al cancelar registro: ' + error.message);
+            setMessageType('error');
+            
+            // Redirigir de todas formas después de mostrar el error
+            setTimeout(() => {
+                switch(tipo) {
+                    case 'estudiante':
+                        navigate('/estudiante');
+                        break;
+                    case 'docente':
+                        navigate('/docente');
+                        break;
+                    case 'egresado':
+                        navigate('/egresado');
+                        break;
+                    default:
+                        navigate('/');
+                }
+            }, 3000);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCloseModal = () => {
+        setShowCancelModal(false);
     };
 
     const formatTime = (seconds) => {
@@ -182,7 +236,7 @@ const VerificationCode = () => {
                                 Error: No se encontró información de verificación
                             </div>
                             <div className="form-actions-custom">
-                                <button onClick={handleBackToHome} className="submit-btn-custom">
+                                <button onClick={() => navigate('/')} className="submit-btn-custom">
                                     🏠 Volver al Inicio
                                 </button>
                             </div>
@@ -195,7 +249,6 @@ const VerificationCode = () => {
 
     return (
         <div className="home-container">
-            {/* Fondo idéntico al homepage */}
             <div className="background-shapes">
                 <div className="shape shape-1"></div>
                 <div className="shape shape-2"></div>
@@ -203,27 +256,58 @@ const VerificationCode = () => {
                 <div className="shape shape-4"></div>
             </div>
 
-            {/* Header idéntico al homepage */}
             <header className="premium-header">
                 <div className="header-content">
                     <div className="logo-section">
-                        <div className="logo-icon">🚀</div>
+                        <img 
+                            src="/logo192.png" 
+                            alt="StudySphere Logo" 
+                            className="site-logo"
+                        />
                         <h1>StudySphere</h1>
                     </div>
                     <nav className="nav-actions">
                         <button 
                             className="nav-btn profile-nav-btn"
-                            onClick={handleBackToHome}
+                            onClick={handleCancelClick}
                             disabled={loading}
                         >
-                            <span className="btn-icon">🏠</span>
-                            <span>Volver al Inicio</span>
+                            <span className="btn-icon">✖</span>
+                            <span>Cancelar Registro</span>
                         </button>
                     </nav>
                 </div>
             </header>
 
-            {/* Contenido de verificación */}
+            {showCancelModal && (
+                <div className="modal-overlay">
+                    <div className="modal-content-custom">
+                        <div className="modal-header-custom">
+                            <h3>¿Cancelar Registro?</h3>
+                        </div>
+                        <div className="modal-body-custom">
+                            <p>¿Estás seguro de que quieres cancelar el registro? <strong>Se eliminarán permanentemente todos los datos ingresados de la base de datos</strong> y deberás comenzar de nuevo.</p>
+                        </div>
+                        <div className="modal-actions-custom">
+                            <button 
+                                className="cancel-btn-modal"
+                                onClick={handleConfirmCancel}
+                                disabled={loading}
+                            >
+                                {loading ? 'Eliminando...' : 'Sí, Eliminar Registro'}
+                            </button>
+                            <button 
+                                className="confirm-btn-modal"
+                                onClick={handleCloseModal}
+                                disabled={loading}
+                            >
+                                No, Continuar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="form-section">
                 <div className="form-container-custom">
                     <div className="form-card-custom">
@@ -274,7 +358,7 @@ const VerificationCode = () => {
 
                             <div className="timer-section">
                                 <p className="timer-text">
-                                    ⏳ El código expira en: <strong>{formatTime(timeLeft)}</strong>
+                                    Tiempo restante: <strong>{formatTime(timeLeft)}</strong>
                                 </p>
                             </div>
 
@@ -297,9 +381,9 @@ const VerificationCode = () => {
                                 <button
                                     onClick={handleResendCode}
                                     disabled={loading || !canResend}
-                                    className="resend-btn"
+                                    className={`resend-btn ${canResend ? 'active' : ''}`}
                                 >
-                                    {canResend ? '🔄 Reenviar Código' : '⏳ Espera para reenviar'}
+                                    {canResend ? '🔄 Reenviar Código' : `Espera ${formatTime(timeLeft)}`}
                                 </button>
                             </div>
                         </div>
@@ -309,7 +393,8 @@ const VerificationCode = () => {
                             <ul>
                                 <li>Revisa tu carpeta de spam o correo no deseado</li>
                                 <li>Asegúrate de que <strong>{email}</strong> sea correcto</li>
-                                <li>Espera unos minutos y solicita un nuevo código</li>
+                                <li>Espera 3 minutos y podrás reenviar el código</li>
+                                <li><strong>No podrás continuar sin verificar tu correo</strong></li>
                             </ul>
                         </div>
                     </div>

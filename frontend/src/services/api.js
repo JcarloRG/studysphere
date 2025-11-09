@@ -198,6 +198,52 @@ async function requestMultipart(method, path, formData, timeoutMs = 20000) {
 
 export const apiService = {
 
+    // En services/api.js - ACTUALIZAR ESTE MÉTODO
+
+async cancelRegistration(email, tipo) {
+    console.log(`🗑️ Cancelando registro para: ${email}, tipo: ${tipo}`);
+    
+    try {
+        // Buscar el perfil por correo y tipo para obtener el ID
+        const buscarResult = await this.buscarPorCorreoYTipo(email, tipo);
+        
+        if (!buscarResult.success) {
+            throw new Error('No se encontró el registro para cancelar');
+        }
+
+        const perfilId = buscarResult.id;
+        console.log(`🔍 Encontrado ${tipo} ID: ${perfilId} para cancelar`);
+
+        // ✅ USAR LOS NUEVOS ENDPOINTS
+        let resultado;
+        switch(tipo) {
+            case 'estudiante':
+                resultado = await requestJSON('POST', `/api/estudiante/${perfilId}/delete/`, {});
+                break;
+            case 'docente':
+                resultado = await requestJSON('POST', `/api/docente/${perfilId}/delete/`, {});
+                break;
+            case 'egresado':
+                resultado = await requestJSON('POST', `/api/egresado/${perfilId}/delete/`, {});
+                break;
+            default:
+                throw new Error('Tipo de usuario no válido');
+        }
+
+        console.log('✅ Registro eliminado exitosamente:', resultado);
+        return {
+            success: true,
+            message: resultado.message || 'Registro cancelado exitosamente',
+            data: resultado.data,
+            status: resultado.status,
+        };
+
+    } catch (error) {
+        console.error('❌ Error en cancelRegistration:', error);
+        throw new Error(error.message || 'Error al cancelar el registro');
+    }
+},
+
     /* ---------- AUTHENTICATION ---------- */
     async loginUser(email, password) {
         console.log(`🔐 INICIANDO LOGIN para: ${email}`);
@@ -343,8 +389,8 @@ export const apiService = {
     async getPerfil(tipo, id) {
         console.log(`🔍 Obteniendo perfil: ${tipo} ID: ${id}`);
         if (tipo === 'estudiante') return this.getPerfilEstudiante(id);
-        if (tipo === 'docente')    return this.getPerfilDocente(id);
-        if (tipo === 'egresado')   return this.getPerfilEgresado(id);
+        if (tipo === 'docente')    return this.getPerfilDocente(id);
+        if (tipo === 'egresado')   return this.getPerfilEgresado(id);
         throw new Error('Tipo de perfil no válido');
     },
 

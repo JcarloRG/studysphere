@@ -29,4 +29,9 @@ urlpatterns = [
 
     # foto estudiante
     path('api/estudiantes/<int:estudiante_id>/foto/', views.actualizar_foto_estudiante),
+
+    # Nuevas rutas para eliminar registros
+    path('api/estudiante/<int:id>/delete/', views.eliminar_estudiante, name='eliminar_estudiante'),
+    path('api/docente/<int:id>/delete/', views.eliminar_docente, name='eliminar_docente'),
+    path('api/egresado/<int:id>/delete/', views.eliminar_egresado, name='eliminar_egresado'),
 ]
