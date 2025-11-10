@@ -300,22 +300,46 @@ const Perfil = () => {
                     </div>
 
                     {/* Columna 2: sidebar (LÓGICA CONDICIONAL) */}
-                    <div className="perfil-sidebar">
-                        <div className="sidebar-card">
-                            <h3 className="sidebar-title">
-                                {isOwner ? '🔧 Gestión de Perfil' : '🤝 Interacción'}
-                            </h3>
-                            <div className="sidebar-actions-group">
-                                
-                                {/* 1. CONTACTAR (Solo si NO es el Propietario) */}
-                                {!isOwner && (
-                                    <button onClick={handleContactar} className="sidebar-btn contactar-btn">
-                                        <span className="btn-icon">✉️</span> Contactar
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+<div className="perfil-sidebar">
+    <div className="sidebar-card">
+        <h3 className="sidebar-title">
+            {isOwner ? '🔧 Gestión de Perfil' : '🤝 Interacción'}
+        </h3>
+        <div className="sidebar-actions-group">
+            
+            {/* 1. CONTACTAR (Solo si NO es el Propietario) */}
+            {!isOwner && (
+                <button onClick={handleContactar} className="sidebar-btn contactar-btn">
+                    <span className="btn-icon">✉️</span> Contactar
+                </button>
+            )}
+
+            {/* 2. BOTONES PARA EL PROPIETARIO O ADMIN */}
+            {(isOwner || isAdmin) && (
+                <>
+                    {/* Botón Editar (solo propietario) */}
+                    {isOwner && (
+                        <button onClick={handleEditar} className="sidebar-btn editar-btn">
+                            <span className="btn-icon">✏️</span> Editar Perfil
+                        </button>
+                    )}
+
+                    {/* Botón Eliminar (propietario o admin) */}
+                    <button onClick={handleEliminar} className="sidebar-btn eliminar-btn">
+                        <span className="btn-icon">🗑️</span> Eliminar Perfil
+                    </button>
+                </>
+            )}
+
+            {/* 3. BOTÓN CERRAR SESIÓN (solo si es el propietario viendo su propio perfil) */}
+            {isOwner && (
+                <button onClick={handleLogout} className="sidebar-btn logout-btn">
+                    <span className="btn-icon">🚪</span> Cerrar Sesión
+                </button>
+            )}
+        </div>
+    </div>
+</div>
                 </div>
             </div>
         </div>

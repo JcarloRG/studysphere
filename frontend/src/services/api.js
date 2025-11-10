@@ -394,24 +394,42 @@ async cancelRegistration(email, tipo) {
         throw new Error('Tipo de perfil no válido');
     },
 
-    /* ---------- DELETE, UPDATE, SEARCH (Mantenido) ---------- */
-    async deleteEstudiante(estudianteId) {
-        console.log(`🗑️ Eliminando estudiante ID: ${estudianteId}`);
-        const res = await requestJSON('DELETE', `/api/estudiante/${estudianteId}/`);
-        return { success: true, message: res.message || 'Estudiante eliminado exitosamente', status: res.status };
-    },
+    /* ---------- DELETE, UPDATE, SEARCH (Corregido) ---------- */
+async deleteEstudiante(estudianteId) {
+    console.log(`🗑️ Eliminando estudiante ID: ${estudianteId}`);
+    // ✅ USAR LA URL CORRECTA que coincide con tu Django
+    const res = await requestJSON('POST', `/api/estudiante/${estudianteId}/delete/`);
+    return { 
+        success: true, 
+        message: res.message || 'Estudiante eliminado exitosamente', 
+        data: res.data,
+        status: res.status 
+    };
+},
 
-    async deleteDocente(docenteId) {
-        console.log(`🗑️ Eliminando docente ID: ${docenteId}`);
-        const res = await requestJSON('DELETE', `/api/docente/${docenteId}/`);
-        return { success: true, message: res.message || 'Docente eliminado exitosamente', status: res.status };
-    },
+async deleteDocente(docenteId) {
+    console.log(`🗑️ Eliminando docente ID: ${docenteId}`);
+    // ✅ USAR LA URL CORRECTA que coincide con tu Django
+    const res = await requestJSON('POST', `/api/docente/${docenteId}/delete/`);
+    return { 
+        success: true, 
+        message: res.message || 'Docente eliminado exitosamente', 
+        data: res.data,
+        status: res.status 
+    };
+},
 
-    async deleteEgresado(egresadoId) {
-        console.log(`🗑️ Eliminando egresado ID: ${egresadoId}`);
-        const res = await requestJSON('DELETE', `/api/egresado/${egresadoId}/`);
-        return { success: true, message: res.message || 'Egresado eliminado exitosamente', status: res.status };
-    },
+async deleteEgresado(egresadoId) {
+    console.log(`🗑️ Eliminando egresado ID: ${egresadoId}`);
+    // ✅ USAR LA URL CORRECTA que coincide con tu Django
+    const res = await requestJSON('POST', `/api/egresado/${egresadoId}/delete/`);
+    return { 
+        success: true, 
+        message: res.message || 'Egresado eliminado exitosamente', 
+        data: res.data,
+        status: res.status 
+    };
+},
 
     async updateEstudiante(estudianteId, estudianteData) {
         console.log(`✏️ Actualizando estudiante ID: ${estudianteId}`, estudianteData);
