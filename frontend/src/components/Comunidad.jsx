@@ -1,4 +1,4 @@
-// src/components/Comunidad.jsx (con filtrado completo en todos los modos)
+// src/components/Comunidad.jsx
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -20,7 +20,7 @@ const avatarFromName = (name = 'Usuario') => {
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
-    .map(w => w[0].toUpperCase())
+    .map((w) => w[0].toUpperCase())
     .join('');
   const svg = encodeURIComponent(`
     <svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'>
@@ -49,7 +49,7 @@ const Comunidad = () => {
 
   const [perfilesRecomendados, setPerfilesRecomendados] = useState([]);
   const [perfilActualIndex, setPerfilActualIndex] = useState(0);
-  const [colaboraciones, setColaboraciones] = useState([]);
+  const [colaboraciones, setColaboraciones] = useState([]); // ahora viene de mis matches
   const [viewMode, setViewMode] = useState('lista');
   const [error, setError] = useState('');
   const [mensajeExito, setMensajeExito] = useState('');
@@ -65,25 +65,27 @@ const Comunidad = () => {
 
   useEffect(() => {
     cargarComunidad();
+    if (currentUserId && currentUserType) {
+      cargarMisMatches();
+      cargarRecomendados();
+    } else {
+      setPerfilesRecomendados([]);
+      setColaboraciones([]);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserId, currentUserType]);
 
   // ----- helpers de imagen -----
   const buildMediaUrl = (rel) => {
     if (!rel) return null;
-    // Host base (por si API_BASE_URL incluye /api)
     const host = API_BASE_URL.replace(/\/api\/?$/, '').replace(/\/+$/, '');
-    // Si ya es absoluta, la devolvemos
     if (/^https?:\/\//i.test(rel)) return rel;
-    // Relativa tipo /media/... o /static/...
     return `${host}${rel.startsWith('/') ? '' : '/'}${rel}`;
   };
 
   const getAvatarUrl = (perfil) => {
-    // 1) prioriza foto_url (DRF) o foto (string)
     const rel = perfil?.foto_url || perfil?.foto;
     if (rel) return buildMediaUrl(rel);
-    // 2) placeholder por tipo
     if (perfil?.tipo === 'docente') return '/avatar-docente.png';
     if (perfil?.tipo === 'egresado') return '/avatar-egresado.png';
     return '/avatar-default.png';
@@ -93,16 +95,15 @@ const Comunidad = () => {
   const normalizeId = (o) =>
     o?.id ?? o?.estudiante_id ?? o?.docente_id ?? o?.egresado_id ?? o?._id ?? null;
 
-  // 🌟 FUNCIÓN PARA FILTRAR MI PERFIL
+  // 🌟 FILTRAR MI PERFIL
   const filtrarMiPerfil = (perfiles) => {
     if (!currentUserId || !currentUserType) return perfiles;
-    
     return perfiles.filter(
       (p) => !(Number(p.id) === currentUserId && p.tipo === currentUserType)
     );
   };
 
-  // Cargar comunidad (sin excluir en backend; se filtra en front)
+  // Cargar comunidad (solo listas base)
   const cargarComunidad = async () => {
     try {
       setLoading(true);
@@ -117,34 +118,6 @@ const Comunidad = () => {
       if (estudiantesRes.success) setEstudiantes(estudiantesRes.data || []);
       if (docentesRes.success) setDocentes(docentesRes.data || []);
       if (egresadosRes.success) setEgresados(egresadosRes.data || []);
-
-      const todosLosPerfiles = [
-        ...(estudiantesRes.data || []).map((e) => ({
-          ...e,
-          tipo: 'estudiante',
-          id: normalizeId(e),
-        })),
-        ...(docentesRes.data || []).map((d) => ({
-          ...d,
-          tipo: 'docente',
-          id: normalizeId(d),
-        })),
-        ...(egresadosRes.data || []).map((g) => ({
-          ...g,
-          tipo: 'egresado',
-          id: normalizeId(g),
-        })),
-      ];
-
-      // 🌟 FILTRAR MI PERFIL TAMBIÉN EN PERFILES RECOMENDADOS
-      const perfilesFiltrados = filtrarMiPerfil(todosLosPerfiles);
-
-      if (perfilesFiltrados.length) {
-        const shuffled = [...perfilesFiltrados].sort(() => 0.5 - Math.random());
-        setPerfilesRecomendados(shuffled);
-      } else {
-        setPerfilesRecomendados([]);
-      }
     } catch (err) {
       setError('Error al cargar la comunidad: ' + err.message);
     } finally {
@@ -152,23 +125,83 @@ const Comunidad = () => {
     }
   };
 
-  // COLABORACIÓN
-  const handleColaborar = async (perfil) => {
+  // 🔄 Cargar matches del usuario (para el contador de colaboraciones)
+  const cargarMisMatches = async () => {
     try {
+      const res = await apiService.obtenerMisMatches();
+      if (res.success) {
+        // res.matches viene del backend
+        setColaboraciones(res.matches || []);
+      } else {
+        console.error('Error obteniendo mis matches:', res.message);
+      }
+    } catch (err) {
+      console.error('Error al obtener mis matches:', err);
+    }
+  };
+
+  // 🔍 Recomendaciones desde el backend de matchs
+  const cargarRecomendados = async () => {
+    if (!currentUserId || !currentUserType) {
+      setPerfilesRecomendados([]);
+      return;
+    }
+    try {
+      const res = await apiService.obtenerMatchesPotenciales();
+      if (res.success) {
+        const arr = res.matches || [];
+        // Normalizamos para que encaje con la interfaz
+        const normalizados = filtrarMiPerfil(
+          arr.map((p) => ({
+            ...p,
+            id: normalizeId(p),
+            // El backend manda "carrera"; la adaptamos a lo que usa la UI
+            carrera_actual: p.carrera_actual || p.carrera || '',
+            carrera_egreso: p.carrera_egreso || p.carrera || '',
+          }))
+        );
+        setPerfilesRecomendados(normalizados);
+        setPerfilActualIndex(0);
+      } else {
+        console.error('Error al obtener recomendaciones:', res.message);
+      }
+    } catch (err) {
+      console.error('Error al cargar recomendaciones:', err);
+    }
+  };
+
+  // COLABORACIÓN (usa sistema de matchs del backend)
+  const handleColaborar = async (perfil) => {
+    if (!currentUserId || !currentUserType) {
+      setError('Debes iniciar sesión para enviar solicitudes de colaboración.');
+      return;
+    }
+    try {
+      const res = await apiService.enviarSolicitudMatch(perfil.id, perfil.tipo);
+      if (!res.success) {
+        setError(res.message || 'Error al enviar solicitud de colaboración');
+        return;
+      }
+
       setLastCollaboratedUser(perfil);
       setShowCollaborationModal(true);
-      setColaboraciones((prev) => [...prev, perfil]);
-      setMensajeExito('¡Solicitud de colaboración enviada!');
+      setMensajeExito(res.message || '¡Solicitud de colaboración enviada!');
+
+      // Refrescamos contador de colaboraciones
+      cargarMisMatches();
+
       setTimeout(() => setMensajeExito(''), 2500);
     } catch {
       setError('Error al enviar solicitud de colaboración');
     }
+
     if (viewMode === 'descubrir') {
       siguientePerfil();
     }
   };
 
   const handlePass = () => siguientePerfil();
+
   const siguientePerfil = () =>
     setPerfilActualIndex((prev) =>
       prev >= perfilesRecomendados.length - 1 ? 0 : prev + 1
@@ -207,13 +240,8 @@ const Comunidad = () => {
         })),
       ];
 
-    // 🌟 YA NO NECESITAMOS FILTRAR AQUÍ PORQUE SE HACE EN filtrarMiPerfil
-    // Pero mantenemos el filtro por si acaso
-    if (currentUserId && currentUserType) {
-      perfiles = perfiles.filter(
-        (p) => !(Number(p.id) === currentUserId && p.tipo === currentUserType)
-      );
-    }
+    // Excluir mi propio perfil también en lista
+    perfiles = filtrarMiPerfil(perfiles);
 
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
@@ -229,10 +257,22 @@ const Comunidad = () => {
   };
 
   const getTipoIcon = (tipo) =>
-    tipo === 'estudiante' ? '🎓' : tipo === 'docente' ? '📚' : tipo === 'egresado' ? '💼' : '👤';
+    tipo === 'estudiante'
+      ? '🎓'
+      : tipo === 'docente'
+      ? '📚'
+      : tipo === 'egresado'
+      ? '💼'
+      : '👤';
 
   const getTipoColor = (tipo) =>
-    tipo === 'estudiante' ? '#667eea' : tipo === 'docente' ? '#ff6b6b' : tipo === 'egresado' ? '#4ecdc4' : '#6b7280';
+    tipo === 'estudiante'
+      ? '#667eea'
+      : tipo === 'docente'
+      ? '#ff6b6b'
+      : tipo === 'egresado'
+      ? '#4ecdc4'
+      : '#6b7280';
 
   const perfilesFiltrados = getPerfilesFiltrados();
   const perfilActual = perfilesRecomendados[perfilActualIndex];
@@ -253,7 +293,6 @@ const Comunidad = () => {
             <h1>StudySphere</h1>
           </div>
           <nav className="nav-actions">
-            {/* Enlace al perfil propio */}
             <Link
               to={currentUserId ? `/perfil/${currentUserType}/${currentUserId}` : '/'}
               className="nav-btn profile-nav-btn"
@@ -399,8 +438,8 @@ const Comunidad = () => {
                 <div className="empty-icon">🔍</div>
                 <h3>No hay perfiles para mostrar</h3>
                 <p>No se encontraron otros perfiles en la comunidad</p>
-                <button onClick={cargarComunidad} className="reload-btn">
-                  🔄 Recargar
+                <button onClick={cargarRecomendados} className="reload-btn">
+                  🔄 Recargar sugerencias
                 </button>
               </div>
             ) : perfilActual ? (
@@ -420,7 +459,9 @@ const Comunidad = () => {
                       alt="Avatar"
                       onError={(e) => {
                         e.currentTarget.onerror = null;
-                        e.currentTarget.src = avatarFromName(perfilActual?.nombre_completo);
+                        e.currentTarget.src = avatarFromName(
+                          perfilActual?.nombre_completo
+                        );
                       }}
                     />
                   </div>
@@ -436,11 +477,21 @@ const Comunidad = () => {
                       <h3>{perfilActual.nombre_completo || 'Usuario'}</h3>
                       <p className="profile-role">
                         {perfilActual.tipo === 'estudiante' &&
-                          `Estudiante - ${perfilActual.carrera_actual || 'Carrera'}`}
+                          `Estudiante - ${
+                            perfilActual.carrera_actual || perfilActual.carrera || 'Carrera'
+                          }`}
                         {perfilActual.tipo === 'docente' &&
-                          `Docente - ${perfilActual.carrera_egreso || 'Especialidad'}`}
+                          `Docente - ${
+                            perfilActual.carrera_egreso ||
+                            perfilActual.carrera ||
+                            'Especialidad'
+                          }`}
                         {perfilActual.tipo === 'egresado' &&
-                          `Egresado - ${perfilActual.carrera_egreso || 'Profesión'}`}
+                          `Egresado - ${
+                            perfilActual.carrera_egreso ||
+                            perfilActual.carrera ||
+                            'Profesión'
+                          }`}
                       </p>
                       <div className="availability-tag disponible">
                         Disponible para colaborar
@@ -509,11 +560,6 @@ const Comunidad = () => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="search-input"
                   />
-                  {searchTerm && (
-                    <button className="clear-search" onClick={() => setSearchTerm('')}>
-                      ×
-                    </button>
-                  )}
                 </div>
                 <div className="filter-buttons">
                   {filters.map((f) => (
@@ -614,7 +660,10 @@ const Comunidad = () => {
                         >
                           ✉️ Contactar
                         </a>
-                        <button className="match-btn" onClick={() => handleColaborar(p)}>
+                        <button
+                          className="match-btn"
+                          onClick={() => handleColaborar(p)}
+                        >
                           🤝 Colaborar
                         </button>
                       </div>
@@ -637,7 +686,9 @@ const Comunidad = () => {
               </Link>
               <button
                 className="cta-btn secondary"
-                onClick={() => setViewMode(viewMode === 'descubrir' ? 'lista' : 'descubrir')}
+                onClick={() =>
+                  setViewMode(viewMode === 'descubrir' ? 'lista' : 'descubrir')
+                }
               >
                 {viewMode === 'descubrir' ? '👥 Ver Todos' : '🔍 Descubrir'}
               </button>

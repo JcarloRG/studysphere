@@ -1,4 +1,4 @@
-# En users/urls.py - MODIFICAR el archivo completo
+# apps/users/urls.py
 
 from django.urls import path
 from . import views
@@ -29,6 +29,7 @@ urlpatterns = [
     path('api/email/verify_code/', views.verify_email_code),
 
     # ===================== FOTOS - NUEVAS RUTAS =====================
+
     # Actualizar fotos
     path('api/estudiante/<int:estudiante_id>/foto/', views.actualizar_foto_estudiante),
     path('api/docente/<int:docente_id>/foto/', views.actualizar_foto_docente),
@@ -43,4 +44,16 @@ urlpatterns = [
     path('api/estudiante/<int:id>/delete/', views.eliminar_estudiante, name='eliminar_estudiante'),
     path('api/docente/<int:id>/delete/', views.eliminar_docente, name='eliminar_docente'),
     path('api/egresado/<int:id>/delete/', views.eliminar_egresado, name='eliminar_egresado'),
+
+    # ===================== MATCHES (con prefijo /api) =====================
+    path('api/matches/solicitar/', views.matches_solicitar),
+    path('api/matches/aceptar/', views.matches_aceptar),
+    path('api/matches/rechazar/', views.matches_rechazar),
+    path('api/matches/estado/<int:perfil_id>/', views.matches_estado),
+    path('api/matches/mis-matches/', views.matches_mis_matches),
+    path('api/matches/potenciales/', views.matches_potenciales),
+
+        # PROYECTOS
+    path('api/proyectos/', views.proyectos_list),
+    path('api/proyectos/<int:proyecto_id>/me-interesa/', views.proyecto_me_interesa),
 ]
