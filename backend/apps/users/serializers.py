@@ -9,9 +9,10 @@ class EstudianteSerializer(serializers.ModelSerializer):
         model = Estudiante
         fields = [
             'id',
-            'nombre_completo', 
+            'nombre',
+            'apellido_paterno',
+            'apellido_materno',
             'correo_institucional',
-            'numero_control',
             'carrera_actual',
             'otra_carrera', 
             'semestre',
@@ -41,7 +42,9 @@ class DocenteSerializer(serializers.ModelSerializer):
         model = Docente
         fields = [
             'id',
-            'nombre_completo',
+            'nombre',
+            'apellido_paterno',
+            'apellido_materno',
             'correo_institucional',
             'carrera_egreso',
             'carreras_imparte',
@@ -70,7 +73,9 @@ class EgresadoSerializer(serializers.ModelSerializer):
         model = Egresado
         fields = [
             'id',
-            'nombre_completo',
+            'nombre',
+            'apellido_paterno',
+            'apellido_materno',
             'correo_institucional',
             'carrera_egreso',
             'anio_egreso',

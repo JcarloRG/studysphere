@@ -42,60 +42,46 @@ const Perfil = () => {
   const [proyectos, setProyectos] = useState([]);
   const [loadingProyectos, setLoadingProyectos] = useState(false);
   const [errorProyectos, setErrorProyectos] = useState('');
-  const [nuevoProyecto, setNuevoProyecto] = useState({
-    titulo: '',
-    tipo_proyecto: 'proyecto', // proyecto | curso | tesis | otro
-    descripcion: '',
-    tecnologias: '',
-    link_repo: '',
-    link_demo: '',
-  });
 
-  // ===== Centro de Notificaciones (UI local de ejemplo) =====
-  const [notifFilter, setNotifFilter] = useState('all'); // all | match | system
-  const [notifs, setNotifs] = useState([
-    {
-      id: 101,
-      type: 'match',
-      title: '¡Nuevo match de proyecto!',
-      description:
-        '"Clasificador COVID-19 con Random Forest" busca un perfil como el tuyo.',
-      time: 'Hace 2 min',
-      read: false,
-      ctaLabel: 'Ver proyecto',
-      ctaPath: '/proyectos/busqueda?match=101',
-    },
-    {
-      id: 102,
-      type: 'system',
-      title: 'Verificación de correo completada',
-      description: 'Tu correo institucional ya fue verificado correctamente.',
-      time: 'Hoy, 10:15',
-      read: false,
-    },
-    {
-      id: 103,
-      type: 'match',
-      title: 'Invitación a equipo',
-      description:
-        'Docente "F. Torres" te invitó a unirte al equipo de Redes (WAN).',
-      time: 'Ayer',
-      read: true,
-      ctaLabel: 'Revisar invitación',
-      ctaPath: '/comunidad?inv=103',
-    },
-  ]);
+  // ===== Centro de Notificaciones =====
+  const [notifFilter, setNotifFilter] = useState('all'); // all | match | message | proyecto | system
+  const [notifs, setNotifs] = useState([]);
+  const [loadingNotifs, setLoadingNotifs] = useState(false);
+
+  const cargarNotificaciones = async () => {
+    setLoadingNotifs(true);
+    try {
+      const res = await apiService.obtenerNotificaciones();
+      if (res.success) {
+        setNotifs(res.notificaciones);
+      }
+    } finally {
+      setLoadingNotifs(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOwner) return;
+    cargarNotificaciones();
+    // refrescamos cada 30s para que las nuevas solicitudes/mensajes aparezcan
+    // sin tener que recargar la página
+    const interval = setInterval(cargarNotificaciones, 30000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOwner]);
 
   const unreadCount = notifs.filter((n) => !n.read).length;
 
-  const markRead = (id) => {
+  const markRead = async (id) => {
     setNotifs((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+    await apiService.marcarNotificacionLeida(id);
   };
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
     setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+    await apiService.marcarTodasNotificacionesLeidas();
   };
 
   const clearRead = () => {
@@ -104,9 +90,7 @@ const Perfil = () => {
 
   const filteredNotifs = notifs.filter((n) => {
     if (notifFilter === 'all') return true;
-    if (notifFilter === 'match') return n.type === 'match';
-    if (notifFilter === 'system') return n.type === 'system';
-    return true;
+    return n.type === notifFilter;
   });
 
   // Helper URL media
@@ -206,11 +190,6 @@ const Perfil = () => {
 
   // Acciones de perfil
   const handleEditar = () => navigate(`/editar/${tipo}/${id}`);
-  const handleLogout = () => {
-    localStorage.removeItem('currentUserId');
-    localStorage.removeItem('currentUserType');
-    navigate('/');
-  };
 
   const handleEliminar = async () => {
     if (
@@ -348,44 +327,8 @@ const Perfil = () => {
   };
 
   // ===================== PROYECTOS: handlers =====================
-
-  const handleNuevoProyectoChange = (e) => {
-    const { name, value } = e.target;
-    setNuevoProyecto((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleCrearProyecto = async (e) => {
-    e.preventDefault();
-    if (!nuevoProyecto.titulo || !nuevoProyecto.descripcion) {
-      alert('Título y descripción son obligatorios.');
-      return;
-    }
-
-    try {
-      const res = await apiService.crearProyecto(nuevoProyecto);
-      if (res.success) {
-        const creado = res.data || nuevoProyecto;
-        // lo añadimos al inicio
-        setProyectos((prev) => [creado, ...prev]);
-        setNuevoProyecto({
-          titulo: '',
-          tipo_proyecto: 'proyecto',
-          descripcion: '',
-          tecnologias: '',
-          link_repo: '',
-          link_demo: '',
-        });
-        alert(res.message || 'Proyecto creado correctamente.');
-      } else {
-        alert(res.message || 'Error al crear proyecto.');
-      }
-    } catch (err) {
-      console.error('Error al crear proyecto:', err);
-      alert(
-        'Error al crear proyecto: ' + (err.message || 'Error desconocido')
-      );
-    }
-  };
+  // (La creación de proyectos vive en /proyectos/crear; aquí solo se listan
+  // los que ya publicó este perfil — ver botón "Publicar proyecto" abajo.)
 
   // ===================== FUNCIONALIDAD MEJORADA DE FOTOS =====================
 
@@ -591,7 +534,8 @@ const Perfil = () => {
             </div>
           </div>
 
-          {/* ====== Centro de Notificaciones ====== */}
+          {/* ====== Centro de Notificaciones (solo el dueño del perfil) ====== */}
+          {isOwner && (
           <section className="notifs-card">
             <div className="notifs-header">
               <div className="notifs-header-left">
@@ -641,6 +585,22 @@ const Perfil = () => {
               </button>
               <button
                 className={`pill ${
+                  notifFilter === 'message' ? 'pill--active' : ''
+                }`}
+                onClick={() => setNotifFilter('message')}
+              >
+                Mensajes
+              </button>
+              <button
+                className={`pill ${
+                  notifFilter === 'proyecto' ? 'pill--active' : ''
+                }`}
+                onClick={() => setNotifFilter('proyecto')}
+              >
+                Proyectos
+              </button>
+              <button
+                className={`pill ${
                   notifFilter === 'system' ? 'pill--active' : ''
                 }`}
                 onClick={() => setNotifFilter('system')}
@@ -650,7 +610,11 @@ const Perfil = () => {
             </div>
 
             <div className="notifs-list">
-              {filteredNotifs.length === 0 ? (
+              {loadingNotifs ? (
+                <div className="notifs-empty">
+                  <p>Cargando notificaciones...</p>
+                </div>
+              ) : filteredNotifs.length === 0 ? (
                 <div className="notifs-empty">
                   <p>No hay notificaciones para este filtro.</p>
                 </div>
@@ -669,6 +633,7 @@ const Perfil = () => {
                       {n.type === 'match' && <span>🎯</span>}
                       {n.type === 'system' && <span>🛠️</span>}
                       {n.type === 'message' && <span>✉️</span>}
+                      {n.type === 'proyecto' && <span>📁</span>}
                     </div>
                     <div className="notif-content">
                       <div className="notif-title-row">
@@ -696,6 +661,7 @@ const Perfil = () => {
               )}
             </div>
           </section>
+          )}
         </>
       );
     }
@@ -750,83 +716,18 @@ const Perfil = () => {
     if (activeTab === 'proyectos') {
       return (
         <div className="info-section-custom full-width">
-          <h3 className="section-title-custom">📂 Proyectos</h3>
-
-          {/* Formulario para el dueño del perfil */}
-          {isOwner && (
-            <form className="project-form" onSubmit={handleCrearProyecto}>
-              <h4 className="project-form-title">Agregar nuevo proyecto</h4>
-              <div className="project-form-grid">
-                <div className="info-item-custom full-width">
-                  <label>Título del proyecto</label>
-                  <input
-                    type="text"
-                    name="titulo"
-                    value={nuevoProyecto.titulo}
-                    onChange={handleNuevoProyectoChange}
-                    placeholder="Ej. Sistema experto de bebidas con IA"
-                  />
-                </div>
-                <div className="info-item-custom">
-                  <label>Tipo</label>
-                  <select
-                    name="tipo_proyecto"
-                    value={nuevoProyecto.tipo_proyecto}
-                    onChange={handleNuevoProyectoChange}
-                  >
-                    <option value="proyecto">Proyecto</option>
-                    <option value="curso">Curso / Taller</option>
-                    <option value="tesis">Tesis</option>
-                    <option value="otro">Otro</option>
-                  </select>
-                </div>
-                <div className="info-item-custom full-width">
-                  <label>Descripción</label>
-                  <textarea
-                    name="descripcion"
-                    value={nuevoProyecto.descripcion}
-                    onChange={handleNuevoProyectoChange}
-                    rows={4}
-                    placeholder="Explica brevemente el objetivo, tecnologías y qué tipo de colaboraciones buscas."
-                  />
-                </div>
-                <div className="info-item-custom full-width">
-                  <label>Tecnologías / Temas</label>
-                  <input
-                    type="text"
-                    name="tecnologias"
-                    value={nuevoProyecto.tecnologias}
-                    onChange={handleNuevoProyectoChange}
-                    placeholder="Ej. React, Django, Redes WAN, IA, Fuzzy Logic..."
-                  />
-                </div>
-                <div className="info-item-custom">
-                  <label>Repositorio (GitHub, GitLab...)</label>
-                  <input
-                    type="url"
-                    name="link_repo"
-                    value={nuevoProyecto.link_repo}
-                    onChange={handleNuevoProyectoChange}
-                    placeholder="https://github.com/usuario/proyecto"
-                  />
-                </div>
-                <div className="info-item-custom">
-                  <label>Demo / Documento</label>
-                  <input
-                    type="url"
-                    name="link_demo"
-                    value={nuevoProyecto.link_demo}
-                    onChange={handleNuevoProyectoChange}
-                    placeholder="https://tudemo.com / enlace a PDF"
-                  />
-                </div>
-              </div>
-
-              <button type="submit" className="sidebar-btn match-btn">
-                Publicar proyecto
+          <div className="projects-tab-header">
+            <h3 className="section-title-custom">📂 Proyectos</h3>
+            {isOwner && (
+              <button
+                type="button"
+                className="sidebar-btn match-btn"
+                onClick={() => navigate('/proyectos/crear')}
+              >
+                🚀 Publicar proyecto
               </button>
-            </form>
-          )}
+            )}
+          </div>
 
           {/* Lista de proyectos */}
           <div className="projects-list">
@@ -837,7 +738,7 @@ const Perfil = () => {
             ) : proyectos.length === 0 ? (
               <p className="no-content-message">
                 {isOwner
-                  ? 'Aún no has publicado proyectos. Usa el formulario de arriba para agregar el primero.'
+                  ? 'Aún no has publicado proyectos. Usa el botón de arriba para publicar el primero.'
                   : 'Este perfil todavía no tiene proyectos publicados.'}
               </p>
             ) : (
@@ -847,42 +748,31 @@ const Perfil = () => {
                     <h4 className="project-title">
                       {p.titulo || 'Proyecto sin título'}
                     </h4>
-                    {p.tipo_proyecto && (
-                      <span className="chip">
-                        {p.tipo_proyecto}
-                      </span>
-                    )}
+                    <div className="project-card-badges">
+                      {p.tipo && <span className="chip">{p.tipo}</span>}
+                      {p.estado && (
+                        <span className={`chip chip-estado-${p.estado.replace(/\s+/g, '-')}`}>
+                          {p.estado}
+                        </span>
+                      )}
+                    </div>
                   </header>
-                  {p.tecnologias && (
-                    <p className="project-techs">
-                      {p.tecnologias}
-                    </p>
+                  {p.modalidad && (
+                    <p className="project-techs">Modalidad: {p.modalidad}</p>
                   )}
                   <p className="project-desc">
                     {p.descripcion || 'Sin descripción.'}
                   </p>
-                  <div className="project-links">
-                    {p.link_repo && (
-                      <a
-                        href={p.link_repo}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="project-link"
-                      >
-                        Ver repositorio
-                      </a>
-                    )}
-                    {p.link_demo && (
-                      <a
-                        href={p.link_demo}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="project-link"
-                      >
-                        Ver demo / documento
-                      </a>
-                    )}
-                  </div>
+                  {p.habilidades_requeridas && (
+                    <p className="project-techs">
+                      <strong>Buscan:</strong> {p.habilidades_requeridas}
+                    </p>
+                  )}
+                  {p.area_interes && (
+                    <p className="project-techs">
+                      <strong>Área de interés:</strong> {p.area_interes}
+                    </p>
+                  )}
                 </article>
               ))
             )}
@@ -905,11 +795,7 @@ const Perfil = () => {
 
   return (
     <div className="perfil-container">
-      {/* Solo pasar onLogout si es el propietario */}
-      <AppHeader
-        onLogout={isOwner ? handleLogout : null}
-        onGoCommunity={() => navigate('/comunidad')}
-      />
+      <AppHeader />
 
       {/* Resumen superior */}
       <section className="perfil-summary-card">
@@ -1007,7 +893,7 @@ const Perfil = () => {
       <div className="perfil-grid-layout perfil-grid-layout--pro">
         {/* Columna izquierda */}
         <div className="perfil-content-wrapper">
-          <div className="perfil-tab-content">{renderTabContent()}</div>
+          <div className="perfil-tab-content" key={activeTab}>{renderTabContent()}</div>
         </div>
 
         {/* Columna derecha */}

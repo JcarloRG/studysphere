@@ -3,9 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
 import { Link } from 'react-router-dom';
+import AppHeader from './AppHeader';
 import './Comunidad.css'; // reutilizamos estilos bonitos
 
 const BuscarProyectos = () => {
+  const currentUserId = localStorage.getItem('currentUserId');
+  const currentUserType = localStorage.getItem('currentUserType');
+
   const [proyectos, setProyectos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -15,6 +19,8 @@ const BuscarProyectos = () => {
   const [modalidadFilter, setModalidadFilter] = useState('todos');
 
   const [mensajeExito, setMensajeExito] = useState('');
+  const [postulandoId, setPostulandoId] = useState(null);
+  const [interesados, setInteresados] = useState(new Set());
 
   // Cargar proyectos desde el backend
   const cargarProyectos = async () => {
@@ -49,8 +55,8 @@ const BuscarProyectos = () => {
       !q ||
       (p.titulo && p.titulo.toLowerCase().includes(q)) ||
       (p.descripcion && p.descripcion.toLowerCase().includes(q)) ||
-      (p.tags && p.tags.toLowerCase().includes(q)) ||
-      (p.skills && p.skills.toLowerCase().includes(q));
+      (p.area_interes && p.area_interes.toLowerCase().includes(q)) ||
+      (p.habilidades_requeridas && p.habilidades_requeridas.toLowerCase().includes(q));
 
     const coincideTipo =
       tipoFilter === 'todos' || (p.tipo && p.tipo.toLowerCase() === tipoFilter);
@@ -66,11 +72,26 @@ const BuscarProyectos = () => {
     return coincideBusqueda && coincideTipo && coincideEstado && coincideModalidad;
   });
 
-  const handlePostular = (proyecto) => {
-    // Aquí más adelante puedes conectar con el sistema de match o envío de solicitud
-    console.log('Postular a proyecto:', proyecto);
-    setMensajeExito(`Tu interés en "${proyecto.titulo}" ha sido registrado.`);
-    setTimeout(() => setMensajeExito(''), 2500);
+  const handlePostular = async (proyecto) => {
+    if (!currentUserId || !currentUserType) {
+      setError('Debes iniciar sesión para postularte a un proyecto.');
+      return;
+    }
+    setPostulandoId(proyecto.id);
+    try {
+      const res = await apiService.marcarInteresProyecto(proyecto.id);
+      if (res.success) {
+        setInteresados((prev) => new Set(prev).add(proyecto.id));
+        setMensajeExito(`Tu interés en "${proyecto.titulo}" ha sido registrado.`);
+        setTimeout(() => setMensajeExito(''), 2500);
+      } else {
+        setError(res.message || 'No se pudo registrar tu interés.');
+      }
+    } catch (err) {
+      setError(err.message || 'Error al registrar tu interés en el proyecto.');
+    } finally {
+      setPostulandoId(null);
+    }
   };
 
   return (
@@ -82,20 +103,7 @@ const BuscarProyectos = () => {
         <div className="shape shape-4"></div>
       </div>
 
-      <header className="premium-header">
-        <div className="header-content">
-          <div className="logo-section">
-            <img src="/logo192.png" alt="StudySphere Logo" className="site-logo" />
-            <h1>StudySphere</h1>
-          </div>
-          <nav className="nav-actions">
-            <Link to="/comunidad" className="nav-btn">
-              <span className="btn-icon">👥</span>
-              <span>Comunidad</span>
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <AppHeader />
 
       <div className="comunidad-content">
         {/* HERO */}
@@ -109,6 +117,9 @@ const BuscarProyectos = () => {
               <p className="form-description-custom">
                 Explora proyectos, cursos y mentorías para colaborar con la comunidad
               </p>
+              <Link to="/proyectos/crear" className="cta-btn primary">
+                🚀 Publicar Proyecto
+              </Link>
             </div>
 
             <div className="hero-stats">
@@ -224,62 +235,75 @@ const BuscarProyectos = () => {
             </div>
           ) : (
             <div className="members-grid">
-              {proyectosFiltrados.map((p) => (
-                <div key={p.id} className="member-card">
-                  <div className="member-header">
-                    <div className="profile-badge-large" style={{ backgroundColor: '#6366f1' }}>
-                      📁
-                    </div>
-                    <div className="member-info">
-                      <h3>{p.titulo || 'Proyecto sin título'}</h3>
-                      <p className="member-role">
-                        {p.tipo ? p.tipo.charAt(0).toUpperCase() + p.tipo.slice(1) : 'Proyecto'}
-                        {p.modalidad && ` · ${p.modalidad}`}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="member-details">
-                    <p className="member-email">
-                      {p.descripcion || 'Sin descripción'}
-                    </p>
-
-                    {p.tags && (
-                      <div className="member-interests">
-                        <strong>Tags:</strong>{' '}
-                        <span>{p.tags}</span>
+              {proyectosFiltrados.map((p) => {
+                const yaInteresado = interesados.has(p.id);
+                const estadoNorm = (p.estado || 'abierto').toLowerCase();
+                return (
+                  <div key={p.id} className="member-card">
+                    <div className="member-header">
+                      <div className="profile-badge-large" style={{ backgroundColor: '#6366f1' }}>
+                        📁
                       </div>
-                    )}
-
-                    {p.skills && (
-                      <div className="member-skills">
-                        <strong>Habilidades requeridas:</strong>{' '}
-                        <span>{p.skills}</span>
+                      <div className="member-info">
+                        <h3>{p.titulo || 'Proyecto sin título'}</h3>
+                        <p className="member-role">
+                          {p.tipo ? p.tipo.charAt(0).toUpperCase() + p.tipo.slice(1) : 'Proyecto'}
+                          {p.modalidad && ` · ${p.modalidad}`}
+                        </p>
                       </div>
-                    )}
+                      <span className={`project-estado-badge estado-${estadoNorm.replace(/\s+/g, '-')}`}>
+                        {p.estado || 'abierto'}
+                      </span>
+                    </div>
 
-                    {p.creador_nombre && (
-                      <p className="member-interests">
-                        <strong>Creador:</strong>{' '}
-                        {p.creador_nombre} {p.creador_tipo && `(${p.creador_tipo})`}
+                    <div className="member-details">
+                      <p className="member-email">
+                        {p.descripcion || 'Sin descripción'}
                       </p>
-                    )}
-                  </div>
 
-                  <div className="member-actions">
-                    {/* Más adelante puedes enlazar a /proyectos/:id */}
-                    {/* <Link to={`/proyectos/${p.id}`} className="profile-link">
-                      Ver detalles
-                    </Link> */}
-                    <button
-                      className="match-btn"
-                      onClick={() => handlePostular(p)}
-                    >
-                      🤝 Quiero colaborar
-                    </button>
+                      {p.area_interes && (
+                        <div className="member-interests">
+                          <strong>Área de interés:</strong>{' '}
+                          <span>{p.area_interes}</span>
+                        </div>
+                      )}
+
+                      {p.habilidades_requeridas && (
+                        <div className="member-skills">
+                          <strong>Buscan:</strong>{' '}
+                          <span>{p.habilidades_requeridas}</span>
+                        </div>
+                      )}
+
+                      {p.creador_nombre && (
+                        <p className="member-interests">
+                          <strong>Publicado por:</strong>{' '}
+                          {p.creador_nombre} {p.creador_tipo && `(${p.creador_tipo})`}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="member-actions">
+                      {String(p.creador_id) === String(currentUserId) &&
+                      p.creador_tipo === currentUserType ? (
+                        <span className="own-project-chip">📌 Tu proyecto</span>
+                      ) : (
+                        <button
+                          className="match-btn"
+                          onClick={() => handlePostular(p)}
+                          disabled={postulandoId === p.id || yaInteresado}
+                        >
+                          {yaInteresado
+                            ? '✅ Interés enviado'
+                            : postulandoId === p.id
+                            ? 'Enviando...'
+                            : '🤝 Quiero colaborar'}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>

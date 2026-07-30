@@ -53,6 +53,18 @@ urlpatterns = [
     path('api/matches/mis-matches/', views.matches_mis_matches),
     path('api/matches/potenciales/', views.matches_potenciales),
 
+    # PREFERENCIAS DE BÚSQUEDA (alimentan el algoritmo de matching)
+    path('api/preferencias/', views.preferencias_usuario),
+
+    # MENSAJERÍA (chat entre matches aceptados)
+    path('api/conversaciones/', views.conversaciones_lista),
+    path('api/mensajes/<int:match_id>/', views.mensajes_conversacion),
+
+    # NOTIFICACIONES
+    path('api/notificaciones/', views.notificaciones_lista),
+    path('api/notificaciones/marcar-leida/', views.notificaciones_marcar_leida),
+    path('api/notificaciones/marcar-todas-leidas/', views.notificaciones_marcar_todas_leidas),
+
         # PROYECTOS
     path('api/proyectos/', views.proyectos_list),
     path('api/proyectos/<int:proyecto_id>/me-interesa/', views.proyecto_me_interesa),

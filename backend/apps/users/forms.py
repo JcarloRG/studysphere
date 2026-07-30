@@ -38,9 +38,10 @@ class EstudianteForm(forms.ModelForm):
     class Meta:
         model = Estudiante
         fields = [
-            'nombre_completo', 
-            'correo_institucional', 
-            'numero_control', 
+            'nombre',
+            'apellido_paterno',
+            'apellido_materno',
+            'correo_institucional',
             'carrera_actual',
             'otra_carrera',
             'semestre',
@@ -49,17 +50,12 @@ class EstudianteForm(forms.ModelForm):
             'foto'  # <-- AGREGAR ESTE CAMPO
         ]
         widgets = {
-            'nombre_completo': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Nombre completo'
-            }),
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre(s)'}),
+            'apellido_paterno': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Apellido paterno'}),
+            'apellido_materno': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Apellido materno'}),
             'correo_institucional': forms.EmailInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'correo@institucion.edu'
-            }),
-            'numero_control': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Número de control'
+                'placeholder': 'correo@ejemplo.com'
             }),
             'carrera_actual': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -85,9 +81,10 @@ class EstudianteForm(forms.ModelForm):
             })
         }
         labels = {
-            'nombre_completo': 'Nombre Completo',
-            'correo_institucional': 'Correo Institucional',
-            'numero_control': 'Número de Control',
+            'nombre': 'Nombre(s)',
+            'apellido_paterno': 'Apellido paterno',
+            'apellido_materno': 'Apellido materno',
+            'correo_institucional': 'Correo electrónico',
             'carrera_actual': 'Carrera Actual',
             'otra_carrera': '¿Otra Carrera?',
             'semestre': 'Semestre',
@@ -100,7 +97,9 @@ class DocenteForm(forms.ModelForm):
     class Meta:
         model = Docente
         fields = [
-            'nombre_completo',
+            'nombre',
+            'apellido_paterno',
+            'apellido_materno',
             'correo_institucional',
             'carrera_egreso',
             'grado_academico',
@@ -109,7 +108,9 @@ class DocenteForm(forms.ModelForm):
             'foto'  # <-- AGREGAR ESTE CAMPO
         ]
         widgets = {
-            'nombre_completo': forms.TextInput(attrs={'class': 'form-control'}),
+            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'apellido_paterno': forms.TextInput(attrs={'class': 'form-control'}),
+            'apellido_materno': forms.TextInput(attrs={'class': 'form-control'}),
             'correo_institucional': forms.EmailInput(attrs={'class': 'form-control'}),
             'carrera_egreso': forms.TextInput(attrs={'class': 'form-control'}),
             'grado_academico': forms.Select(attrs={'class': 'form-control'}),  # Cambiado a Select
@@ -128,7 +129,9 @@ class EgresadoForm(forms.ModelForm):
     class Meta:
         model = Egresado
         fields = [
-            'nombre_completo',
+            'nombre',
+            'apellido_paterno',
+            'apellido_materno',
             'correo_institucional',
             'carrera_egreso',
             'anio_egreso',
@@ -137,7 +140,9 @@ class EgresadoForm(forms.ModelForm):
             'foto'  # <-- AGREGAR ESTE CAMPO
         ]
         widgets = {
-            'nombre_completo': forms.TextInput(attrs={'class': 'form-control'}),
+            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'apellido_paterno': forms.TextInput(attrs={'class': 'form-control'}),
+            'apellido_materno': forms.TextInput(attrs={'class': 'form-control'}),
             'correo_institucional': forms.EmailInput(attrs={'class': 'form-control'}),
             'carrera_egreso': forms.TextInput(attrs={'class': 'form-control'}),
             'anio_egreso': forms.NumberInput(attrs={

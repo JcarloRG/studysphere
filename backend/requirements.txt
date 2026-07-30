@@ -2,6 +2,6 @@ Django==4.2.16
 djangorestframework==3.16.1
 django-cors-headers==4.4.0
 djangorestframework_simplejwt==5.5.1
-PyMySQL==1.1.0
+psycopg2-binary==2.9.12
 python-dotenv==1.0.1
-mysql-connector-python==8.0.33
+

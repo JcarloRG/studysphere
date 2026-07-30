@@ -215,7 +215,13 @@ async function requestJSONWithUser(
     throw new Error("No hay información del usuario logueado en el navegador.");
   }
 
-  const normalizedPath = ensureTrailingSlash(path);
+  // Separamos el query string ANTES de normalizar la barra final: si no lo
+  // hiciéramos, "?tipo_perfil=estudiante" terminaría con una "/" pegada al
+  // final del valor del parámetro (".../estudiante/"), rompiendo cualquier
+  // comparación exacta que haga el backend con ese valor.
+  const [pathOnly, queryString] = path.split('?');
+  const normalizedPath =
+    ensureTrailingSlash(pathOnly) + (queryString ? `?${queryString}` : '');
   const url = joinURL(API_BASE_URL, normalizedPath);
 
   const controller = new AbortController();
@@ -398,10 +404,11 @@ export const apiService = {
     }
 
     if (
-      !estudianteData?.nombre_completo ||
+      !estudianteData?.nombre ||
+      !estudianteData?.apellido_paterno ||
       !estudianteData?.correo_institucional
     ) {
-      throw new Error("Nombre y correo son obligatorios");
+      throw new Error("Nombre, apellido paterno y correo son obligatorios");
     }
     const res = await requestJSON(
       "POST",
@@ -422,12 +429,13 @@ export const apiService = {
     console.log("📦 Datos a enviar:", docenteData);
 
     if (
-      !docenteData?.nombre_completo ||
+      !docenteData?.nombre ||
+      !docenteData?.apellido_paterno ||
       !docenteData?.correo_institucional ||
       !docenteData?.carrera_egreso
     ) {
       throw new Error(
-        "Nombre, correo y carrera de egreso son obligatorios"
+        "Nombre, apellido paterno, correo y carrera de egreso son obligatorios"
       );
     }
 
@@ -450,13 +458,14 @@ export const apiService = {
     console.log("📦 Datos a enviar:", egresadoData);
 
     if (
-      !egresadoData?.nombre_completo ||
+      !egresadoData?.nombre ||
+      !egresadoData?.apellido_paterno ||
       !egresadoData?.correo_institucional ||
       !egresadoData?.carrera_egreso ||
       !egresadoData?.anio_egreso
     ) {
       throw new Error(
-        "Nombre, correo, carrera de egreso y año de egreso son obligatorios"
+        "Nombre, apellido paterno, correo, carrera de egreso y año de egreso son obligatorios"
       );
     }
     if (isNaN(Number(egresadoData.anio_egreso))) {
@@ -553,7 +562,7 @@ export const apiService = {
   /* ---------- DELETE, UPDATE, SEARCH ---------- */
   async deleteEstudiante(estudianteId) {
     console.log(`🗑️ Eliminando estudiante ID: ${estudianteId}`);
-    const res = await requestJSON(
+    const res = await requestJSONWithUser(
       "POST",
       `/api/estudiante/${estudianteId}/delete/`
     );
@@ -567,7 +576,7 @@ export const apiService = {
 
   async deleteDocente(docenteId) {
     console.log(`🗑️ Eliminando docente ID: ${docenteId}`);
-    const res = await requestJSON(
+    const res = await requestJSONWithUser(
       "POST",
       `/api/docente/${docenteId}/delete/`
     );
@@ -581,7 +590,7 @@ export const apiService = {
 
   async deleteEgresado(egresadoId) {
     console.log(`🗑️ Eliminando egresado ID: ${egresadoId}`);
-    const res = await requestJSON(
+    const res = await requestJSONWithUser(
       "POST",
       `/api/egresado/${egresadoId}/delete/`
     );
@@ -595,7 +604,7 @@ export const apiService = {
 
   async updateEstudiante(estudianteId, estudianteData) {
     console.log(`✏️ Actualizando estudiante ID: ${estudianteId}`, estudianteData);
-    const res = await requestJSON(
+    const res = await requestJSONWithUser(
       "PUT",
       `/api/estudiante/${estudianteId}/`,
       estudianteData
@@ -610,7 +619,7 @@ export const apiService = {
 
   async updateDocente(docenteId, docenteData) {
     console.log(`✏️ Actualizando docente ID: ${docenteId}`, docenteData);
-    const res = await requestJSON(
+    const res = await requestJSONWithUser(
       "PUT",
       `/api/docente/${docenteId}/`,
       docenteData
@@ -625,7 +634,7 @@ export const apiService = {
 
   async updateEgresado(egresadoId, egresadoData) {
     console.log(`✏️ Actualizando egresado ID: ${egresadoId}`, egresadoData);
-    const res = await requestJSON(
+    const res = await requestJSONWithUser(
       "PUT",
       `/api/egresado/${egresadoId}/`,
       egresadoData
@@ -636,6 +645,14 @@ export const apiService = {
       data: res.data,
       status: res.status,
     };
+  },
+
+  // 👉 Dispatcher genérico, como getPerfil(tipo, id)
+  async actualizarPerfil(tipo, id, data) {
+    if (tipo === "estudiante") return this.updateEstudiante(id, data);
+    if (tipo === "docente") return this.updateDocente(id, data);
+    if (tipo === "egresado") return this.updateEgresado(id, data);
+    throw new Error("Tipo de perfil no válido");
   },
 
   async buscarEstudiantes(query) {
@@ -1016,14 +1033,13 @@ export const apiService = {
     }
   },
 
-  async obtenerMisMatches() {
-    console.log("🔍 Obteniendo mis matches...");
+  async obtenerMisMatches(estado = '') {
+    console.log("🔍 Obteniendo mis matches...", estado ? `(estado=${estado})` : '');
     try {
-      const res = await requestJSONWithUser(
-        "GET",
-        "/api/matches/mis-matches/",
-        null
-      );
+      const path = estado
+        ? `/api/matches/mis-matches/?estado=${encodeURIComponent(estado)}`
+        : "/api/matches/mis-matches/";
+      const res = await requestJSONWithUser("GET", path, null);
       console.log("📡 Respuesta obtenerMisMatches:", res);
       return {
         success: true,
@@ -1042,12 +1058,16 @@ export const apiService = {
     }
   },
 
-  async verificarEstadoMatch(perfilId) {
-    console.log(`🔍 Verificando estado de match con perfil ID: ${perfilId}`);
+  async verificarEstadoMatch(perfilId, tipoPerfil) {
+    console.log(`🔍 Verificando estado de match con perfil ID: ${perfilId} (${tipoPerfil})`);
     try {
+      if (!tipoPerfil) {
+        throw new Error("tipoPerfil es requerido para verificar el estado del match");
+      }
+      const params = new URLSearchParams({ tipo_perfil: tipoPerfil });
       const res = await requestJSONWithUser(
         "GET",
-        `/api/matches/estado/${perfilId}/`,
+        `/api/matches/estado/${perfilId}/?${params.toString()}`,
         null
       );
       console.log("📡 Respuesta verificarEstadoMatch:", res);
@@ -1216,8 +1236,8 @@ export const apiService = {
 
     const payload = {
       ...proyectoData,
-      perfil_id: proyectoData.perfil_id ?? currentUserId,
-      perfil_tipo: proyectoData.perfil_tipo ?? currentUserType,
+      creador_id: proyectoData.creador_id ?? currentUserId,
+      creador_tipo: proyectoData.creador_tipo ?? currentUserType,
     };
 
     const res = await requestJSONWithUser(
@@ -1237,5 +1257,147 @@ export const apiService = {
   // 👉 Alias en español para que tu frontend pueda llamar apiService.crearProyecto(...)
   async crearProyecto(proyectoData) {
     return this.createProyecto(proyectoData);
+  },
+
+  // Marcar interés en un proyecto ("Quiero colaborar")
+  async marcarInteresProyecto(proyectoId, mensaje = "") {
+    const currentUserId = localStorage.getItem("currentUserId");
+    const currentUserType = localStorage.getItem("currentUserType");
+
+    if (!currentUserId || !currentUserType) {
+      throw new Error("Debes iniciar sesión para postularte a un proyecto");
+    }
+    if (!proyectoId) {
+      throw new Error("proyectoId es requerido");
+    }
+
+    const res = await requestJSONWithUser(
+      "POST",
+      `/api/proyectos/${proyectoId}/me-interesa/`,
+      {
+        usuario_id: currentUserId,
+        usuario_tipo: currentUserType,
+        mensaje,
+      }
+    );
+
+    return {
+      success: true,
+      data: res.data,
+      status: res.status,
+      message: res.message || "Interés registrado correctamente",
+    };
+  },
+
+  // ===================== MENSAJERÍA =====================
+
+  // Lista de conversaciones (matches aceptados) con último mensaje y no leídos
+  async obtenerConversaciones() {
+    console.log("💬 Obteniendo conversaciones...");
+    try {
+      const res = await requestJSONWithUser(
+        "GET",
+        "/api/conversaciones/",
+        null
+      );
+      return {
+        success: true,
+        conversaciones: res.data || [],
+        message: res.message,
+        status: res.status,
+      };
+    } catch (error) {
+      console.error("❌ Error en obtenerConversaciones:", error);
+      return {
+        success: false,
+        conversaciones: [],
+        message: error.message || "Error al obtener tus conversaciones",
+      };
+    }
+  },
+
+  // Historial completo de una conversación (marca como leídos los mensajes
+  // que te mandó la otra persona)
+  async obtenerMensajes(matchId) {
+    console.log(`💬 Obteniendo mensajes del match ${matchId}...`);
+    try {
+      const res = await requestJSONWithUser(
+        "GET",
+        `/api/mensajes/${matchId}/`,
+        null
+      );
+      return {
+        success: true,
+        mensajes: res.data || [],
+        message: res.message,
+        status: res.status,
+      };
+    } catch (error) {
+      console.error("❌ Error en obtenerMensajes:", error);
+      return {
+        success: false,
+        mensajes: [],
+        message: error.message || "Error al obtener los mensajes",
+      };
+    }
+  },
+
+  // Manda un mensaje nuevo en una conversación
+  async enviarMensaje(matchId, contenido) {
+    console.log(`💬 Enviando mensaje al match ${matchId}...`);
+    if (!contenido || !contenido.trim()) {
+      throw new Error("El mensaje no puede estar vacío");
+    }
+    const res = await requestJSONWithUser(
+      "POST",
+      `/api/mensajes/${matchId}/`,
+      { contenido: contenido.trim() }
+    );
+    return {
+      success: true,
+      data: res.data,
+      message: res.message || "Mensaje enviado",
+      status: res.status,
+    };
+  },
+
+  // ===================== NOTIFICACIONES =====================
+
+  async obtenerNotificaciones() {
+    console.log("🔔 Obteniendo notificaciones...");
+    try {
+      const res = await requestJSONWithUser("GET", "/api/notificaciones/", null);
+      return {
+        success: true,
+        notificaciones: res.data || [],
+        message: res.message,
+        status: res.status,
+      };
+    } catch (error) {
+      console.error("❌ Error en obtenerNotificaciones:", error);
+      return {
+        success: false,
+        notificaciones: [],
+        message: error.message || "Error al obtener notificaciones",
+      };
+    }
+  },
+
+  async marcarNotificacionLeida(notificacionId) {
+    const res = await requestJSONWithUser(
+      "POST",
+      "/api/notificaciones/marcar-leida/",
+      { notificacion_id: notificacionId }
+    );
+    return { success: true, message: res.message, status: res.status };
+  },
+
+  async marcarTodasNotificacionesLeidas() {
+    const res = await requestJSONWithUser(
+      "POST",
+      "/api/notificaciones/marcar-todas-leidas/",
+      {}
+    );
+    return { success: true, message: res.message, status: res.status };
   },
 };

@@ -1,15 +1,13 @@
 """
 Django settings for studysphere project.
-Configurado para desarrollo local con conexión MySQL, CORS y verificación de email.
+Configurado para desarrollo local con conexión PostgreSQL, CORS y verificación de email.
 """
 
 import os
 from pathlib import Path
-import pymysql
 from dotenv import load_dotenv
 
 # === Inicialización ===
-pymysql.install_as_MySQLdb()
 load_dotenv()
 
 # === Directorio base ===
@@ -86,19 +84,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'studysphere.wsgi.application'
 
-# === Base de datos (MySQL) ===
+# === Base de datos (PostgreSQL) ===
 DATABASES = {
     'default': {
-        'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.mysql'),
+        'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.postgresql'),
         'NAME': os.getenv('DB_NAME', 'studysphere'),
-        'USER': os.getenv('DB_USER', 'root'),
+        'USER': os.getenv('DB_USER', 'postgres'),
         'PASSWORD': os.getenv('DB_PASSWORD', ''),
         'HOST': os.getenv('DB_HOST', '127.0.0.1'),
-        'PORT': os.getenv('DB_PORT', '3306'),
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-            'charset': 'utf8mb4',
-        },
+        'PORT': os.getenv('DB_PORT', '5432'),
         # Mantiene la conexión abierta, mejora performance en dev
         'CONN_MAX_AGE': 60,
     }
@@ -108,7 +102,7 @@ DATABASES = {
 LANGUAGE_CODE = 'es-mx'
 TIME_ZONE = 'America/Mexico_City'
 USE_I18N = True
-USE_TZ = False  # Evita problemas con MySQL y DATETIME
+USE_TZ = False  # Fechas "naive" (sin timezone) en toda la app, por simplicidad
 
 # === Archivos estáticos ===
 STATIC_URL = '/static/'
@@ -135,6 +129,8 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'x-user-id',
+    'x-user-tipo',
 ]
 
 CSRF_TRUSTED_ORIGINS = [

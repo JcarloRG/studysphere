@@ -3,9 +3,10 @@
 from django.db import models
 
 class Estudiante(models.Model):
-    nombre_completo = models.CharField(max_length=150)
+    nombre = models.CharField(max_length=80)
+    apellido_paterno = models.CharField(max_length=80)
+    apellido_materno = models.CharField(max_length=80, blank=True, null=True)
     correo_institucional = models.EmailField(max_length=120)
-    numero_control = models.CharField(max_length=50)
     carrera_actual = models.CharField(max_length=150)
     otra_carrera = models.CharField(max_length=150, default='No')
     semestre = models.CharField(max_length=20, blank=True, null=True)
@@ -15,7 +16,7 @@ class Estudiante(models.Model):
     fecha_registro = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.nombre_completo
+        return f"{self.nombre} {self.apellido_paterno}"
 
     class Meta:
         db_table = 'estudiantes'
@@ -28,7 +29,9 @@ class Docente(models.Model):
         ('Doctorado', 'Doctorado'),
         ('Especialización', 'Especialización'),
     ]
-    nombre_completo = models.CharField(max_length=150)
+    nombre = models.CharField(max_length=80)
+    apellido_paterno = models.CharField(max_length=80)
+    apellido_materno = models.CharField(max_length=80, blank=True, null=True)
     correo_institucional = models.EmailField(max_length=120)
     carrera_egreso = models.CharField(max_length=150, blank=True, null=True)
     grado_academico = models.CharField(max_length=50, choices=GRADO_ACADEMICO_CHOICES, blank=True, null=True)
@@ -38,14 +41,16 @@ class Docente(models.Model):
     fecha_registro = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.nombre_completo
+        return f"{self.nombre} {self.apellido_paterno}"
 
     class Meta:
         db_table = 'docentes'
 
 
 class Egresado(models.Model):
-    nombre_completo = models.CharField(max_length=150)
+    nombre = models.CharField(max_length=80)
+    apellido_paterno = models.CharField(max_length=80)
+    apellido_materno = models.CharField(max_length=80, blank=True, null=True)
     correo_institucional = models.EmailField(max_length=120)
     carrera_egreso = models.CharField(max_length=150)
     anio_egreso = models.CharField(max_length=10)
@@ -55,7 +60,7 @@ class Egresado(models.Model):
     fecha_registro = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.nombre_completo
+        return f"{self.nombre} {self.apellido_paterno}"
 
     class Meta:
         db_table = 'egresados'

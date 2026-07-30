@@ -12,7 +12,12 @@ import string
 from datetime import datetime, timedelta
 import traceback  # Necesario para tu bloque except
 
-import mysql.connector
+import hashlib
+
+import psycopg2
+import psycopg2.extras
+
+from . import matching
 
 
 # ===================== ELIMINAR PERFILES (DJANGO ORM) =====================
@@ -24,6 +29,12 @@ def eliminar_estudiante(request, id):
     """
     if request.method == 'POST':
         try:
+            if not _verificar_propietario(request, id, 'estudiante'):
+                return JsonResponse({
+                    'success': False,
+                    'message': 'No tienes permiso para eliminar este perfil.'
+                }, status=403)
+
             from .models import Estudiante
 
             print(f"🗑️ Intentando eliminar estudiante ID: {id}")
@@ -67,6 +78,12 @@ def eliminar_docente(request, id):
     """
     if request.method == 'POST':
         try:
+            if not _verificar_propietario(request, id, 'docente'):
+                return JsonResponse({
+                    'success': False,
+                    'message': 'No tienes permiso para eliminar este perfil.'
+                }, status=403)
+
             from .models import Docente
 
             print(f"🗑️ Intentando eliminar docente ID: {id}")
@@ -107,6 +124,12 @@ def eliminar_egresado(request, id):
     """
     if request.method == 'POST':
         try:
+            if not _verificar_propietario(request, id, 'egresado'):
+                return JsonResponse({
+                    'success': False,
+                    'message': 'No tienes permiso para eliminar este perfil.'
+                }, status=403)
+
             from .models import Egresado
 
             print(f"🗑️ Intentando eliminar egresado ID: {id}")
@@ -150,12 +173,40 @@ def health(request):
 # ===================== Helpers =====================
 
 def db_conn():
-    return mysql.connector.connect(
-        host='127.0.0.1',
-        user='root',
-        password='',
-        database='studysphere'
+    """
+    Conexión "cruda" a Postgres para las consultas SQL directas de este
+    archivo (en paralelo al ORM de Django, que usa la misma base).
+
+    Antes esto tenía host/usuario/password de MySQL hardcodeados (root, sin
+    password) sin usar el .env. Ahora lee la config real desde
+    settings.DATABASES['default'], que sí viene del .env — así solo hay un
+    lugar donde configurar la conexión.
+    """
+    db = settings.DATABASES['default']
+    return psycopg2.connect(
+        host=db['HOST'] or '127.0.0.1',
+        port=db['PORT'] or '5432',
+        dbname=db['NAME'],
+        user=db['USER'],
+        password=db['PASSWORD'],
     )
+
+
+def _hash_password(password):
+    """
+    Hash SHA-256 en Python (hex) para password_hash.
+
+    Antes esto lo hacía la base de datos con SHA2(%s, 256), función que
+    existe en MySQL pero no en Postgres. Calcularlo aquí además tiene la
+    ventaja de que ya no depende del motor de base de datos.
+
+    Nota: SHA-256 sin sal es más débil que algo como PBKDF2/bcrypt (lo que
+    usa Django con make_password/check_password). Se deja igual que antes
+    para no invalidar las contraseñas ya guardadas de tus usuarios actuales;
+    si quieres pasarte a hashing con sal, es un cambio aparte (hay que
+    re-hashear o forzar reset de contraseña).
+    """
+    return hashlib.sha256((password or '').encode('utf-8')).hexdigest()
 
 
 def json_ok(data=None, message=None, status=200):
@@ -291,7 +342,7 @@ def login_user(request):
             return json_err('Correo y contraseña son requeridos.', 400)
 
         conn = db_conn()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         user_info = None
 
         tablas = {
@@ -302,18 +353,24 @@ def login_user(request):
 
         for tabla, tipo in tablas.items():
             sql = f"""
-            SELECT id, nombre_completo, correo_institucional, email_verified, foto
+            SELECT id,
+                   CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')) AS nombre_completo,
+                   nombre, apellido_paterno, apellido_materno,
+                   correo_institucional, email_verified, foto
             FROM {tabla}
-            WHERE LOWER(correo_institucional)=%s AND password_hash=SHA2(%s, 256)
+            WHERE LOWER(correo_institucional)=%s AND password_hash=%s
             LIMIT 1
             """
-            cursor.execute(sql, (email, password))
+            cursor.execute(sql, (email, _hash_password(password)))
             row = cursor.fetchone()
 
             if row:
                 user_info = {
                     'perfil_id': row['id'],
                     'nombre_completo': row['nombre_completo'],
+                    'nombre': row['nombre'],
+                    'apellido_paterno': row['apellido_paterno'],
+                    'apellido_materno': row['apellido_materno'],
                     'correo_institucional': row['correo_institucional'],
                     'tipo': tipo,
                     'email_verified': bool(row['email_verified']),
@@ -331,8 +388,8 @@ def login_user(request):
             print(f"❌ Intento fallido de login para {email}.")
             return json_err('Correo o contraseña incorrectos.', 401)
 
-    except mysql.connector.Error as e:
-        print("❌ ERROR MySQL en login:", str(e))
+    except psycopg2.Error as e:
+        print("❌ ERROR de base de datos en login:", str(e))
         return json_err(f'Error de base de datos: {str(e)}', 500)
     except Exception as e:
         print("❌ ERROR general en login:", str(e))
@@ -356,7 +413,7 @@ def registrar_estudiante(request):
         data, files = _parse_request_data(request)
         print("📝 Datos estudiante recibidos:", data)
 
-        campos = ['nombre_completo', 'correo_institucional', 'numero_control', 'carrera_actual', 'password']
+        campos = ['nombre', 'apellido_paterno', 'correo_institucional', 'carrera_actual', 'password']
         for c in campos:
             if not data.get(c):
                 return json_err(f'Campo obligatorio faltante: {c}', 400)
@@ -378,14 +435,16 @@ def registrar_estudiante(request):
 
         sql = """
         INSERT INTO estudiantes
-        (nombre_completo, correo_institucional, password_hash, numero_control, carrera_actual, otra_carrera, semestre, habilidades, area_interes, foto)
-        VALUES (%s,%s, SHA2(%s, 256), %s,%s,%s,%s,%s,%s,%s)
+        (nombre, apellido_paterno, apellido_materno, correo_institucional, password_hash, carrera_actual, otra_carrera, semestre, habilidades, area_interes, foto)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        RETURNING id
         """
         valores = (
-            data['nombre_completo'],
+            data['nombre'],
+            data['apellido_paterno'],
+            data.get('apellido_materno') or None,
             data['correo_institucional'],
-            data['password'],
-            data['numero_control'],
+            _hash_password(data['password']),
             data['carrera_actual'],
             data.get('otra_carrera', 'No'),
             data.get('semestre', ''),
@@ -394,10 +453,8 @@ def registrar_estudiante(request):
             foto_url
         )
         cursor.execute(sql, valores)
-        conn.commit()
-
-        cursor.execute("SELECT LAST_INSERT_ID()")
         estudiante_id = cursor.fetchone()[0]
+        conn.commit()
 
         if foto_url and 'foto' in files:
             foto = files['foto']
@@ -434,8 +491,8 @@ def registrar_estudiante(request):
             'foto': foto_url or '/static/images/default-avatar.png'
         }, '¡Estudiante registrado! Revisa tu correo para el código.', 201)
 
-    except mysql.connector.Error as e:
-        print("❌ ERROR MySQL:", str(e))
+    except psycopg2.Error as e:
+        print("❌ ERROR de base de datos:", str(e))
         return json_err(f'Error de base de datos: {str(e)}', 500)
     except Exception as e:
         print("❌ ERROR general:", str(e))
@@ -459,7 +516,7 @@ def registrar_docente(request):
         data, files = _parse_request_data(request)
         print("📝 Datos docente recibidos:", data)
 
-        campos = ['nombre_completo', 'correo_institucional', 'carrera_egreso', 'password']
+        campos = ['nombre', 'apellido_paterno', 'correo_institucional', 'carrera_egreso', 'password']
         for c in campos:
             if not data.get(c):
                 return json_err(f'Campo obligatorio faltante: {c}', 400)
@@ -481,13 +538,16 @@ def registrar_docente(request):
 
         sql = """
         INSERT INTO docentes
-        (nombre_completo, correo_institucional, password_hash, carrera_egreso, carreras_imparte, grado_academico, habilidades, logros, foto)
-        VALUES (%s,%s, SHA2(%s, 256), %s,%s,%s,%s,%s,%s)
+        (nombre, apellido_paterno, apellido_materno, correo_institucional, password_hash, carrera_egreso, carreras_imparte, grado_academico, habilidades, logros, foto)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        RETURNING id
         """
         valores = (
-            data['nombre_completo'],
+            data['nombre'],
+            data['apellido_paterno'],
+            data.get('apellido_materno') or None,
             data['correo_institucional'],
-            data['password'],
+            _hash_password(data['password']),
             data['carrera_egreso'],
             data.get('carreras_imparte', ''),
             data.get('grado_academico', ''),
@@ -496,10 +556,8 @@ def registrar_docente(request):
             foto_url
         )
         cursor.execute(sql, valores)
-        conn.commit()
-
-        cursor.execute("SELECT LAST_INSERT_ID()")
         docente_id = cursor.fetchone()[0]
+        conn.commit()
 
         if foto_url and 'foto' in files:
             foto = files['foto']
@@ -536,8 +594,8 @@ def registrar_docente(request):
             'foto': foto_url or '/static/images/default-avatar.png'
         }, '¡Docente registrado! Revisa tu correo para el código.', 201)
 
-    except mysql.connector.Error as e:
-        print("❌ ERROR MySQL:", str(e))
+    except psycopg2.Error as e:
+        print("❌ ERROR de base de datos:", str(e))
         return json_err(f'Error de base de datos: {str(e)}', 500)
     except Exception as e:
         print("❌ ERROR general:", str(e))
@@ -561,7 +619,7 @@ def registrar_egresado(request):
         data, files = _parse_request_data(request)
         print("📝 Datos egresado recibidos:", data)
 
-        campos = ['nombre_completo', 'correo_institucional', 'carrera_egreso', 'anio_egreso', 'password']
+        campos = ['nombre', 'apellido_paterno', 'correo_institucional', 'carrera_egreso', 'anio_egreso', 'password']
         for c in campos:
             if not data.get(c):
                 return json_err(f'Campo obligatorio faltante: {c}', 400)
@@ -587,13 +645,16 @@ def registrar_egresado(request):
 
         sql = """
         INSERT INTO egresados
-        (nombre_completo, correo_institucional, password_hash, carrera_egreso, anio_egreso, ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, competencias, foto)
-        VALUES (%s,%s, SHA2(%s, 256), %s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        (nombre, apellido_paterno, apellido_materno, correo_institucional, password_hash, carrera_egreso, anio_egreso, ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, competencias, foto)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        RETURNING id
         """
         valores = (
-            data['nombre_completo'],
+            data['nombre'],
+            data['apellido_paterno'],
+            data.get('apellido_materno') or None,
             data['correo_institucional'],
-            data['password'],
+            _hash_password(data['password']),
             data['carrera_egreso'],
             anio,
             data.get('ocupacion_actual', ''),
@@ -606,10 +667,8 @@ def registrar_egresado(request):
             foto_url
         )
         cursor.execute(sql, valores)
-        conn.commit()
-
-        cursor.execute("SELECT LAST_INSERT_ID()")
         egresado_id = cursor.fetchone()[0]
+        conn.commit()
 
         if foto_url and 'foto' in files:
             foto = files['foto']
@@ -646,8 +705,8 @@ def registrar_egresado(request):
             'foto': foto_url or '/static/images/default-avatar.png'
         }, '¡Egresado registrado! Revisa tu correo para el código.', 201)
 
-    except mysql.connector.Error as e:
-        print("❌ ERROR MySQL:", str(e))
+    except psycopg2.Error as e:
+        print("❌ ERROR de base de datos:", str(e))
         return json_err(f'Error de base de datos: {str(e)}', 500)
     except Exception as e:
         print("❌ ERROR general:", str(e))
@@ -665,10 +724,13 @@ def listar_estudiantes(request):
 
     try:
         conn = db_conn()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         sql = """
-            SELECT id, nombre_completo, correo_institucional, numero_control, carrera_actual, 
+            SELECT id,
+                   CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')) AS nombre_completo,
+                   nombre, apellido_paterno, apellido_materno,
+                   correo_institucional, carrera_actual,
                    otra_carrera, semestre, habilidades, area_interes, fecha_registro, 
                    COALESCE(foto, '/static/images/default-avatar.png') as foto
             FROM estudiantes
@@ -698,10 +760,13 @@ def listar_docentes(request):
 
     try:
         conn = db_conn()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         sql = """
-            SELECT id, nombre_completo, correo_institucional, carrera_egreso, 
+            SELECT id,
+                   CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')) AS nombre_completo,
+                   nombre, apellido_paterno, apellido_materno,
+                   correo_institucional, carrera_egreso, 
                    carreras_imparte, grado_academico, habilidades, logros, fecha_registro,
                    COALESCE(foto, '/static/images/default-avatar.png') as foto
             FROM docentes
@@ -731,10 +796,13 @@ def listar_egresados(request):
 
     try:
         conn = db_conn()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         sql = """
-            SELECT id, nombre_completo, correo_institucional, carrera_egreso, anio_egreso,
+            SELECT id,
+                   CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')) AS nombre_completo,
+                   nombre, apellido_paterno, apellido_materno,
+                   correo_institucional, carrera_egreso, anio_egreso,
                    ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, 
                    competencias, fecha_registro,
                    COALESCE(foto, '/static/images/default-avatar.png') as foto
@@ -764,13 +832,58 @@ def perfil_estudiante(request, estudiante_id):
     opt = allow_options(request)
     if opt:
         return opt
+
+    if request.method == 'PUT':
+        try:
+            if not _verificar_propietario(request, estudiante_id, 'estudiante'):
+                return json_err('No tienes permiso para editar este perfil.', 403)
+
+            data = json.loads(request.body or "{}")
+
+            nombre = (data.get('nombre') or '').strip()
+            apellido_paterno = (data.get('apellido_paterno') or '').strip()
+            if not nombre or not apellido_paterno:
+                return json_err('Nombre y apellido paterno son obligatorios.', 400)
+            if not (data.get('carrera_actual') or '').strip():
+                return json_err('La carrera actual es obligatoria.', 400)
+
+            conn = db_conn()
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE estudiantes
+                SET nombre=%s, apellido_paterno=%s, apellido_materno=%s,
+                    carrera_actual=%s, otra_carrera=%s, semestre=%s,
+                    habilidades=%s, area_interes=%s
+                WHERE id=%s
+            """, (
+                nombre,
+                apellido_paterno,
+                (data.get('apellido_materno') or '').strip() or None,
+                data.get('carrera_actual', '').strip(),
+                data.get('otra_carrera', 'No'),
+                data.get('semestre', ''),
+                data.get('habilidades', ''),
+                data.get('area_interes', ''),
+                estudiante_id,
+            ))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return json_ok(None, 'Perfil actualizado correctamente.')
+        except Exception as e:
+            print("❌ perfil_estudiante PUT error:", str(e))
+            return json_err(f'Error interno: {str(e)}', 500)
+
     if request.method != 'GET':
         return json_err('Método no permitido', 405)
     try:
         conn = db_conn()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("""
-            SELECT id, nombre_completo, correo_institucional, numero_control, carrera_actual,
+            SELECT id,
+                   CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')) AS nombre_completo,
+                   nombre, apellido_paterno, apellido_materno,
+                   correo_institucional, carrera_actual,
                    otra_carrera, semestre, habilidades, area_interes, fecha_registro, 
                    COALESCE(foto, '/static/images/default-avatar.png') as foto
             FROM estudiantes WHERE id=%s
@@ -790,13 +903,58 @@ def perfil_docente(request, docente_id):
     opt = allow_options(request)
     if opt:
         return opt
+
+    if request.method == 'PUT':
+        try:
+            if not _verificar_propietario(request, docente_id, 'docente'):
+                return json_err('No tienes permiso para editar este perfil.', 403)
+
+            data = json.loads(request.body or "{}")
+
+            nombre = (data.get('nombre') or '').strip()
+            apellido_paterno = (data.get('apellido_paterno') or '').strip()
+            if not nombre or not apellido_paterno:
+                return json_err('Nombre y apellido paterno son obligatorios.', 400)
+            if not (data.get('carrera_egreso') or '').strip():
+                return json_err('La carrera de egreso es obligatoria.', 400)
+
+            conn = db_conn()
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE docentes
+                SET nombre=%s, apellido_paterno=%s, apellido_materno=%s,
+                    carrera_egreso=%s, carreras_imparte=%s, grado_academico=%s,
+                    habilidades=%s, logros=%s
+                WHERE id=%s
+            """, (
+                nombre,
+                apellido_paterno,
+                (data.get('apellido_materno') or '').strip() or None,
+                data.get('carrera_egreso', '').strip(),
+                data.get('carreras_imparte', ''),
+                data.get('grado_academico', ''),
+                data.get('habilidades', ''),
+                data.get('logros', ''),
+                docente_id,
+            ))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return json_ok(None, 'Perfil actualizado correctamente.')
+        except Exception as e:
+            print("❌ perfil_docente PUT error:", str(e))
+            return json_err(f'Error interno: {str(e)}', 500)
+
     if request.method != 'GET':
         return json_err('Método no permitido', 405)
     try:
         conn = db_conn()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("""
-            SELECT id, nombre_completo, correo_institucional, carrera_egreso,
+            SELECT id,
+                   CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')) AS nombre_completo,
+                   nombre, apellido_paterno, apellido_materno,
+                   correo_institucional, carrera_egreso,
                    carreras_imparte, grado_academico, habilidades, logros, fecha_registro,
                    COALESCE(foto, '/static/images/default-avatar.png') as foto
             FROM docentes WHERE id=%s
@@ -816,13 +974,71 @@ def perfil_egresado(request, egresado_id):
     opt = allow_options(request)
     if opt:
         return opt
+
+    if request.method == 'PUT':
+        try:
+            if not _verificar_propietario(request, egresado_id, 'egresado'):
+                return json_err('No tienes permiso para editar este perfil.', 403)
+
+            data = json.loads(request.body or "{}")
+
+            nombre = (data.get('nombre') or '').strip()
+            apellido_paterno = (data.get('apellido_paterno') or '').strip()
+            if not nombre or not apellido_paterno:
+                return json_err('Nombre y apellido paterno son obligatorios.', 400)
+            if not (data.get('carrera_egreso') or '').strip():
+                return json_err('La carrera de egreso es obligatoria.', 400)
+
+            anio = data.get('anio_egreso')
+            try:
+                anio = int(anio)
+                if anio < 1900 or anio > 2100:
+                    raise ValueError
+            except (TypeError, ValueError):
+                return json_err('Año de egreso inválido.', 400)
+
+            conn = db_conn()
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE egresados
+                SET nombre=%s, apellido_paterno=%s, apellido_materno=%s,
+                    carrera_egreso=%s, anio_egreso=%s, ocupacion_actual=%s,
+                    perfil_linkedin=%s, empresa=%s, puesto=%s, logros=%s,
+                    habilidades=%s, competencias=%s
+                WHERE id=%s
+            """, (
+                nombre,
+                apellido_paterno,
+                (data.get('apellido_materno') or '').strip() or None,
+                data.get('carrera_egreso', '').strip(),
+                anio,
+                data.get('ocupacion_actual', ''),
+                data.get('perfil_linkedin', ''),
+                data.get('empresa', ''),
+                data.get('puesto', ''),
+                data.get('logros', ''),
+                data.get('habilidades', ''),
+                data.get('competencias', ''),
+                egresado_id,
+            ))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return json_ok(None, 'Perfil actualizado correctamente.')
+        except Exception as e:
+            print("❌ perfil_egresado PUT error:", str(e))
+            return json_err(f'Error interno: {str(e)}', 500)
+
     if request.method != 'GET':
         return json_err('Método no permitido', 405)
     try:
         conn = db_conn()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("""
-            SELECT id, nombre_completo, correo_institucional, carrera_egreso, anio_egreso,
+            SELECT id,
+                   CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')) AS nombre_completo,
+                   nombre, apellido_paterno, apellido_materno,
+                   correo_institucional, carrera_egreso, anio_egreso,
                    ocupacion_actual, perfil_linkedin, empresa, puesto, logros, habilidades, 
                    competencias, fecha_registro,
                    COALESCE(foto, '/static/images/default-avatar.png') as foto
@@ -1191,7 +1407,7 @@ def verify_email_code(request):
         now = datetime.now()
 
         conn = db_conn()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute("""
             SELECT * FROM email_verifications
             WHERE LOWER(email)=%s AND code=%s
@@ -1251,6 +1467,80 @@ def _normalizar_tipo_usuario(tipo):
     return tipo
 
 
+def _usuario_actual(request):
+    """
+    Identifica al usuario logueado a partir de las cabeceras X-User-Id /
+    X-User-Tipo que manda el frontend en requestJSONWithUser() de api.js.
+
+    Devuelve (usuario_id:int, usuario_tipo:str) o (None, None) si no vienen
+    o son inválidas. Se usa como respaldo en los endpoints de matches que
+    antes solo aceptaban origen_id/origen_tipo por body o query string (y
+    por eso nunca encontraban al usuario, aunque el frontend sí mandaba
+    quién era vía cabeceras).
+    """
+    uid = request.headers.get('X-User-Id')
+    utipo = _normalizar_tipo_usuario(request.headers.get('X-User-Tipo'))
+    if not uid or not utipo:
+        return None, None
+    try:
+        return int(uid), utipo
+    except (TypeError, ValueError):
+        return None, None
+
+
+def _verificar_propietario(request, perfil_id, tipo_esperado):
+    """
+    True si el usuario identificado por las cabeceras es el dueño del
+    perfil que se quiere editar (evita que cualquiera edite el perfil de
+    otra persona con solo saber su id).
+    """
+    usuario_id, usuario_tipo = _usuario_actual(request)
+    try:
+        perfil_id = int(perfil_id)
+    except (TypeError, ValueError):
+        return False
+    return usuario_id == perfil_id and usuario_tipo == tipo_esperado
+
+
+_TABLA_PERFIL = {
+    'estudiante': 'estudiantes',
+    'docente': 'docentes',
+    'egresado': 'egresados',
+}
+
+
+def _nombre_perfil(conn, tipo, perfil_id):
+    """Nombre completo de un perfil, para meterlo en el texto de una notificación."""
+    tabla = _TABLA_PERFIL.get(tipo)
+    if not tabla:
+        return 'Alguien'
+    cur = conn.cursor()
+    cur.execute(f"""
+        SELECT CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, ''))
+        FROM {tabla} WHERE id=%s
+    """, (perfil_id,))
+    row = cur.fetchone()
+    cur.close()
+    return row[0] if row and row[0] else 'Alguien'
+
+
+def _crear_notificacion(conn, usuario_id, usuario_tipo, tipo, titulo,
+                         descripcion='', cta_label=None, cta_path=None):
+    """
+    Inserta una notificación para un usuario. No hace commit — se espera
+    que el caller ya vaya a hacer conn.commit() como parte de su propia
+    transacción (todos los callers de esto están justo antes de un commit
+    de la acción que la disparó).
+    """
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO notificaciones
+            (usuario_id, usuario_tipo, tipo, titulo, descripcion, cta_label, cta_path, creado_en)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+    """, (usuario_id, usuario_tipo, tipo, titulo, descripcion, cta_label, cta_path, datetime.now()))
+    cur.close()
+
+
 @csrf_exempt
 def matches_solicitar(request):
     """
@@ -1269,18 +1559,16 @@ def matches_solicitar(request):
     try:
         data = json.loads(request.body or "{}")
 
-        # usuario que está logueado (origen)
-        usuario_id = data.get('origen_id')
-        usuario_tipo = _normalizar_tipo_usuario(data.get('origen_tipo'))
+        # usuario que está logueado (origen). El frontend normalmente lo manda
+        # por cabeceras (X-User-Id/X-User-Tipo); si además viene en el body,
+        # el body tiene prioridad.
+        header_id, header_tipo = _usuario_actual(request)
+        usuario_id = data.get('origen_id') or header_id
+        usuario_tipo = _normalizar_tipo_usuario(data.get('origen_tipo')) or header_tipo
 
         # perfil al que quiere hacer match
         perfil_id = data.get('perfil_id')
         perfil_tipo = _normalizar_tipo_usuario(data.get('tipo_perfil'))
-
-        # compatibilidad opcional (si no llega, la calculamos al azar 70–99)
-        compat = data.get('compatibilidad')
-        if compat is None:
-            compat = random.randint(70, 99)
 
         if not usuario_id or not usuario_tipo:
             return json_err('Faltan origen_id / origen_tipo en el cuerpo.', 400)
@@ -1294,8 +1582,19 @@ def matches_solicitar(request):
             return json_err('No puedes hacer match contigo mismo.', 400)
 
         conn = db_conn()
-        cur = conn.cursor(dictionary=True)
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         now = datetime.now()
+
+        # compatibilidad opcional (si no llega del frontend, la calculamos
+        # con el algoritmo real de matching.py; si no hay info suficiente
+        # de ninguno de los dos perfiles, usamos un valor neutro)
+        compat = data.get('compatibilidad')
+        if compat is None:
+            compat = matching.compatibilidad_entre_perfiles(
+                conn, usuario_id, usuario_tipo, perfil_id, perfil_tipo
+            )
+            if compat is None:
+                compat = 50
 
         # ¿Ya hay relación en algún sentido?
         cur.execute("""
@@ -1321,19 +1620,65 @@ def matches_solicitar(request):
                     'Ya existe un match aceptado con esta persona.'
                 )
 
-            # Si existía pendiente/rechazado → lo dejamos en pendiente otra vez y
-            # actualizamos compatibilidad
+            misma_direccion = (
+                row['usuario_id'] == usuario_id and row['usuario_tipo'] == usuario_tipo
+            )
+
             cur2 = conn.cursor()
-            cur2.execute("""
-                UPDATE matches
-                SET estado=%s,
-                    compatibilidad=%s,
-                    fecha_actualizacion=%s
-                WHERE id=%s
-            """, ('pendiente', compat, now, row['id']))
+
+            if not misma_direccion and row['estado'] == 'pendiente':
+                # La OTRA persona ya te había mandado una solicitud pendiente
+                # a ti; que tú ahora le "solicites" a ella equivale a
+                # aceptar su solicitud -> match recíproco inmediato.
+                cur2.execute("""
+                    UPDATE matches
+                    SET estado='aceptado',
+                        compatibilidad=%s,
+                        fecha_actualizacion=%s
+                    WHERE id=%s
+                """, (compat, now, row['id']))
+                estado = 'aceptado'
+                _crear_notificacion(
+                    conn, perfil_id, perfil_tipo, 'match',
+                    '¡Es un match!',
+                    f'Ahora colaboras con {_nombre_perfil(conn, usuario_tipo, usuario_id)}.',
+                    'Enviar mensaje', f'/mensajes/{row["id"]}'
+                )
+            elif not misma_direccion:
+                # Iba en sentido contrario pero estaba rechazado -> ahora
+                # el que solicita eres tú, así que volteamos quién es el
+                # remitente para que quede reflejado correctamente.
+                cur2.execute("""
+                    UPDATE matches
+                    SET usuario_id=%s, usuario_tipo=%s,
+                        perfil_match_id=%s, perfil_match_tipo=%s,
+                        estado='pendiente',
+                        compatibilidad=%s,
+                        fecha_actualizacion=%s
+                    WHERE id=%s
+                """, (usuario_id, usuario_tipo, perfil_id, perfil_tipo, compat, now, row['id']))
+                estado = 'pendiente'
+                _crear_notificacion(
+                    conn, perfil_id, perfil_tipo, 'match',
+                    'Nueva solicitud de colaboración',
+                    f'{_nombre_perfil(conn, usuario_tipo, usuario_id)} quiere colaborar contigo.',
+                    'Ver solicitud', '/mis-matches'
+                )
+            else:
+                # Misma dirección de siempre (pendiente otra vez, o
+                # reintentando tras un rechazo tuyo previo) -> solo se
+                # refresca.
+                cur2.execute("""
+                    UPDATE matches
+                    SET estado='pendiente',
+                        compatibilidad=%s,
+                        fecha_actualizacion=%s
+                    WHERE id=%s
+                """, (compat, now, row['id']))
+                estado = 'pendiente'
+
             conn.commit()
             match_id = row['id']
-            estado = 'pendiente'
             cur2.close()
         else:
             # Crear nuevo registro
@@ -1343,19 +1688,31 @@ def matches_solicitar(request):
                     (usuario_id, usuario_tipo, perfil_match_id, perfil_match_tipo,
                      compatibilidad, estado, fecha_match, fecha_actualizacion)
                 VALUES (%s,%s,%s,%s,%s,'pendiente',%s,%s)
+                RETURNING id
             """, (usuario_id, usuario_tipo, perfil_id, perfil_tipo,
                   compat, now, now))
+            match_id = cur2.fetchone()[0]
+            _crear_notificacion(
+                conn, perfil_id, perfil_tipo, 'match',
+                'Nueva solicitud de colaboración',
+                f'{_nombre_perfil(conn, usuario_tipo, usuario_id)} quiere colaborar contigo.',
+                'Ver solicitud', '/mis-matches'
+            )
             conn.commit()
-            match_id = cur2.lastrowid
             estado = 'pendiente'
             cur2.close()
 
         cur.close()
         conn.close()
 
+        mensaje = (
+            '¡Es un match! La otra persona también quería colaborar contigo.'
+            if estado == 'aceptado'
+            else 'Solicitud de colaboración registrada correctamente.'
+        )
         return json_ok(
             {'match_id': match_id, 'estado': estado, 'compatibilidad': compat},
-            'Solicitud de colaboración registrada correctamente.'
+            mensaje
         )
 
     except Exception as e:
@@ -1381,17 +1738,43 @@ def matches_aceptar(request):
         if not match_id:
             return json_err('match_id es requerido', 400)
 
-        now = datetime.now()
+        usuario_id, usuario_tipo = _usuario_actual(request)
+
         conn = db_conn()
-        cur = conn.cursor()
-        cur.execute("""
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM matches WHERE id=%s", (match_id,))
+        match = cur.fetchone()
+
+        if not match:
+            cur.close(); conn.close()
+            return json_err('Match no encontrado.', 404)
+
+        # Solo quien RECIBIÓ la solicitud puede aceptarla
+        es_destinatario = (
+            usuario_id is not None and usuario_tipo is not None and
+            match['perfil_match_id'] == usuario_id and
+            match['perfil_match_tipo'] == usuario_tipo
+        )
+        if not es_destinatario:
+            cur.close(); conn.close()
+            return json_err('No tienes permiso para aceptar este match.', 403)
+
+        now = datetime.now()
+        cur2 = conn.cursor()
+        cur2.execute("""
             UPDATE matches
             SET estado='aceptado',
                 fecha_actualizacion=%s
             WHERE id=%s
         """, (now, match_id))
+        _crear_notificacion(
+            conn, match['usuario_id'], match['usuario_tipo'], 'match',
+            '¡Aceptaron tu solicitud!',
+            f'{_nombre_perfil(conn, usuario_tipo, usuario_id)} aceptó colaborar contigo.',
+            'Enviar mensaje', f'/mensajes/{match_id}'
+        )
         conn.commit()
-        cur.close(); conn.close()
+        cur2.close(); cur.close(); conn.close()
 
         return json_ok({'match_id': match_id, 'estado': 'aceptado'}, 'Match aceptado correctamente.')
 
@@ -1416,17 +1799,36 @@ def matches_rechazar(request):
         if not match_id:
             return json_err('match_id es requerido', 400)
 
-        now = datetime.now()
+        usuario_id, usuario_tipo = _usuario_actual(request)
+
         conn = db_conn()
-        cur = conn.cursor()
-        cur.execute("""
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM matches WHERE id=%s", (match_id,))
+        match = cur.fetchone()
+
+        if not match:
+            cur.close(); conn.close()
+            return json_err('Match no encontrado.', 404)
+
+        es_destinatario = (
+            usuario_id is not None and usuario_tipo is not None and
+            match['perfil_match_id'] == usuario_id and
+            match['perfil_match_tipo'] == usuario_tipo
+        )
+        if not es_destinatario:
+            cur.close(); conn.close()
+            return json_err('No tienes permiso para rechazar este match.', 403)
+
+        now = datetime.now()
+        cur2 = conn.cursor()
+        cur2.execute("""
             UPDATE matches
             SET estado='rechazado',
                 fecha_actualizacion=%s
             WHERE id=%s
         """, (now, match_id))
         conn.commit()
-        cur.close(); conn.close()
+        cur2.close(); cur.close(); conn.close()
 
         return json_ok({'match_id': match_id, 'estado': 'rechazado'}, 'Match rechazado.')
 
@@ -1450,8 +1852,9 @@ def matches_estado(request, perfil_id):
         return json_err('Método no permitido. Usa GET.', 405)
 
     try:
-        origen_id = request.GET.get('origen_id')
-        origen_tipo = _normalizar_tipo_usuario(request.GET.get('origen_tipo'))
+        header_id, header_tipo = _usuario_actual(request)
+        origen_id = request.GET.get('origen_id') or header_id
+        origen_tipo = _normalizar_tipo_usuario(request.GET.get('origen_tipo')) or header_tipo
         tipo_perfil = _normalizar_tipo_usuario(request.GET.get('tipo_perfil'))
 
         if not origen_id or not origen_tipo or not tipo_perfil:
@@ -1461,7 +1864,7 @@ def matches_estado(request, perfil_id):
         objetivo_id = int(perfil_id)
 
         conn = db_conn()
-        cur = conn.cursor(dictionary=True)
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute("""
             SELECT *
             FROM matches
@@ -1497,8 +1900,18 @@ def matches_estado(request, perfil_id):
 @csrf_exempt
 def matches_mis_matches(request):
     """
-    Devuelve todos los matches aceptados de un usuario:
-      GET /api/matches/mis-matches/?origen_id=1&origen_tipo=estudiante
+    Devuelve los matches de un usuario, con el nombre/foto de la OTRA
+    persona ya resueltos (antes solo devolvía IDs crudos) y un campo
+    'direccion' que indica si la solicitud la mandó el usuario actual
+    ('enviada', esperando respuesta del otro) o la recibió ('recibida',
+    el usuario actual es quien puede aceptar/rechazar).
+
+      GET /api/matches/mis-matches/                    → todos los estados
+      GET /api/matches/mis-matches/?estado=aceptado     → solo aceptados
+      GET /api/matches/mis-matches/?estado=pendiente    → solo pendientes
+
+    El usuario se identifica por origen_id/origen_tipo en query string, o
+    si no vienen, por las cabeceras X-User-Id/X-User-Tipo.
     """
     opt = allow_options(request)
     if opt:
@@ -1508,8 +1921,10 @@ def matches_mis_matches(request):
         return json_err('Método no permitido. Usa GET.', 405)
 
     try:
-        origen_id = request.GET.get('origen_id')
-        origen_tipo = _normalizar_tipo_usuario(request.GET.get('origen_tipo'))
+        header_id, header_tipo = _usuario_actual(request)
+        origen_id = request.GET.get('origen_id') or header_id
+        origen_tipo = _normalizar_tipo_usuario(request.GET.get('origen_tipo')) or header_tipo
+        estado_filtro = (request.GET.get('estado') or '').strip().lower()
 
         if not origen_id or not origen_tipo:
             return json_err('Se requieren origen_id y origen_tipo.', 400)
@@ -1517,16 +1932,46 @@ def matches_mis_matches(request):
         origen_id = int(origen_id)
 
         conn = db_conn()
-        cur = conn.cursor(dictionary=True)
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute("""
-            SELECT *
-            FROM matches
-            WHERE estado='aceptado' AND (
-              (usuario_id=%s AND usuario_tipo=%s) OR
-              (perfil_match_id=%s AND perfil_match_tipo=%s)
+            WITH mis_matches AS (
+                SELECT m.*,
+                       CASE WHEN m.usuario_id=%(oid)s AND m.usuario_tipo=%(otipo)s
+                            THEN 'enviada' ELSE 'recibida' END AS direccion,
+                       CASE WHEN m.usuario_id=%(oid)s AND m.usuario_tipo=%(otipo)s
+                            THEN m.perfil_match_id ELSE m.usuario_id END AS otro_id,
+                       CASE WHEN m.usuario_id=%(oid)s AND m.usuario_tipo=%(otipo)s
+                            THEN m.perfil_match_tipo ELSE m.usuario_tipo END AS otro_tipo
+                FROM matches m
+                WHERE (m.usuario_id=%(oid)s AND m.usuario_tipo=%(otipo)s)
+                   OR (m.perfil_match_id=%(oid)s AND m.perfil_match_tipo=%(otipo)s)
             )
-            ORDER BY fecha_actualizacion DESC
-        """, (origen_id, origen_tipo, origen_id, origen_tipo))
+            SELECT
+                mm.id, mm.estado, mm.compatibilidad, mm.direccion,
+                mm.fecha_match, mm.fecha_actualizacion,
+                mm.otro_id, mm.otro_tipo,
+                p.nombre_completo AS otro_nombre,
+                p.foto AS otro_foto
+            FROM mis_matches mm
+            LEFT JOIN (
+                SELECT id, 'estudiante' AS tipo,
+                       CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')) AS nombre_completo,
+                       COALESCE(foto, '/static/images/default-avatar.png') AS foto
+                FROM estudiantes
+                UNION ALL
+                SELECT id, 'docente',
+                       CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')),
+                       COALESCE(foto, '/static/images/default-avatar.png')
+                FROM docentes
+                UNION ALL
+                SELECT id, 'egresado',
+                       CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')),
+                       COALESCE(foto, '/static/images/default-avatar.png')
+                FROM egresados
+            ) p ON p.id = mm.otro_id AND p.tipo = mm.otro_tipo
+            WHERE (%(estado)s = '' OR mm.estado = %(estado)s)
+            ORDER BY mm.fecha_actualizacion DESC
+        """, {'oid': origen_id, 'otipo': origen_tipo, 'estado': estado_filtro})
         rows = cur.fetchall()
         cur.close(); conn.close()
 
@@ -1534,6 +1979,8 @@ def matches_mis_matches(request):
 
     except Exception as e:
         print("❌ matches_mis_matches error:", str(e))
+        import traceback
+        print(traceback.format_exc())
         return json_err(f'Error interno: {str(e)}', 500)
 
 # ===================== MATCHES POTENCIALES =====================
@@ -1557,11 +2004,12 @@ def matches_potenciales(request):
         return json_err('Método no permitido. Usa GET.', 405)
 
     try:
-        origen_id = request.GET.get('origen_id')
-        origen_tipo = _normalizar_tipo_usuario(request.GET.get('origen_tipo'))
+        header_id, header_tipo = _usuario_actual(request)
+        origen_id = request.GET.get('origen_id') or header_id
+        origen_tipo = _normalizar_tipo_usuario(request.GET.get('origen_tipo')) or header_tipo
 
         conn = db_conn()
-        cur = conn.cursor(dictionary=True)
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         candidatos = []
 
@@ -1570,7 +2018,8 @@ def matches_potenciales(request):
             SELECT 
                 id,
                 'estudiante' AS tipo,
-                nombre_completo,
+                CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')) AS nombre_completo,
+                nombre, apellido_paterno, apellido_materno,
                 correo_institucional,
                 carrera_actual AS carrera,
                 habilidades,
@@ -1587,7 +2036,8 @@ def matches_potenciales(request):
             SELECT 
                 id,
                 'docente' AS tipo,
-                nombre_completo,
+                CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')) AS nombre_completo,
+                nombre, apellido_paterno, apellido_materno,
                 correo_institucional,
                 carrera_egreso AS carrera,
                 habilidades,
@@ -1604,7 +2054,8 @@ def matches_potenciales(request):
             SELECT 
                 id,
                 'egresado' AS tipo,
-                nombre_completo,
+                CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')) AS nombre_completo,
+                nombre, apellido_paterno, apellido_materno,
                 correo_institucional,
                 carrera_egreso AS carrera,
                 habilidades,
@@ -1616,10 +2067,7 @@ def matches_potenciales(request):
         """)
         candidatos.extend(cur.fetchall())
 
-        cur.close()
-        conn.close()
-
-        # Si tenemos info del origen, excluimos su propio perfil
+        # Si tenemos info del origen, excluimos su propio perfil...
         if origen_id and origen_tipo:
             try:
                 origen_id_int = int(origen_id)
@@ -1628,18 +2076,633 @@ def matches_potenciales(request):
                     if not (c['tipo'] == origen_tipo and int(c['id']) == origen_id_int)
                 ]
             except ValueError:
-                pass
+                origen_id_int = None
+        else:
+            origen_id_int = None
 
-        # Revolvemos un poco para que no siempre salgan igual
-        random.shuffle(candidatos)
+        # ...y a cualquiera con quien ya exista una relación (pendiente,
+        # aceptada o rechazada), para no repetir gente que ya "swipeaste"
+        if origen_id_int and origen_tipo:
+            cur.execute("""
+                SELECT
+                    CASE WHEN usuario_id=%(oid)s AND usuario_tipo=%(otipo)s
+                         THEN perfil_match_id ELSE usuario_id END AS otro_id,
+                    CASE WHEN usuario_id=%(oid)s AND usuario_tipo=%(otipo)s
+                         THEN perfil_match_tipo ELSE usuario_tipo END AS otro_tipo
+                FROM matches
+                WHERE (usuario_id=%(oid)s AND usuario_tipo=%(otipo)s)
+                   OR (perfil_match_id=%(oid)s AND perfil_match_tipo=%(otipo)s)
+            """, {'oid': origen_id_int, 'otipo': origen_tipo})
+            ya_contactados = {(r['otro_id'], r['otro_tipo']) for r in cur.fetchall()}
+            candidatos = [
+                c for c in candidatos
+                if (int(c['id']), c['tipo']) not in ya_contactados
+            ]
 
-        return json_ok(candidatos, 'Matches potenciales obtenidos correctamente.')
+        # --- Calculamos compatibilidad real (matching.py) en vez de random ---
+        modo_busqueda = 'vacio'
+        if origen_id_int and origen_tipo:
+            hab_o, int_o, modo_busqueda = matching.construir_perfil_busqueda(
+                conn, origen_id_int, origen_tipo
+            )
+
+            if modo_busqueda != 'vacio':
+                for c in candidatos:
+                    hab_c = matching.extraer_palabras_clave(c.get('habilidades'))
+                    int_c = matching.extraer_palabras_clave(c.get('area_interes'))
+                    c['compatibilidad'] = matching.calcular_compatibilidad(
+                        (hab_o, int_o), (hab_c, int_c)
+                    )
+                candidatos.sort(key=lambda c: (-c['compatibilidad'], random.random()))
+
+        if modo_busqueda == 'vacio':
+            # "Cold start": el usuario no tiene preferencias ni perfil
+            # llenado todavía, no hay con qué calcular nada -> revolvemos
+            # para que al menos vea variedad, igual que antes.
+            for c in candidatos:
+                c['compatibilidad'] = None
+            random.shuffle(candidatos)
+
+        cur.close()
+        conn.close()
+
+        mensajes = {
+            'preferencias': 'Matches potenciales obtenidos según tus preferencias de búsqueda.',
+            'perfil_propio': 'Matches potenciales obtenidos según tu perfil (no has configurado preferencias de búsqueda).',
+            'vacio': 'Matches potenciales obtenidos. Completa tu perfil o tus preferencias para recomendaciones más precisas.',
+        }
+
+        return json_ok(candidatos, mensajes.get(modo_busqueda, 'Matches potenciales obtenidos correctamente.'))
 
     except Exception as e:
         print("❌ matches_potenciales error:", str(e))
         import traceback
         print(traceback.format_exc())
         return json_err(f'Error interno: {str(e)}', 500)
+
+
+# ===================== MENSAJES (chat entre matches aceptados) =====================
+#
+# Nota: conceptualmente esto viviría en apps/messaging, pero ese app está
+# vacío y todo el resto del proyecto usa SQL crudo dentro de apps/users
+# (incluyendo matches, que también "debería" vivir en apps/matches). Se
+# sigue esa misma convención aquí por consistencia con el resto del código.
+#
+# No hay WebSockets/tiempo real: el frontend hace polling (pregunta cada
+# pocos segundos) mientras el chat está abierto. Meter Django Channels
+# sería un cambio de infraestructura mucho más grande (servidor ASGI,
+# Redis, etc.) que no vale la pena para el tamaño de este proyecto ahora.
+
+def _match_participante(conn, match_id, usuario_id, usuario_tipo):
+    """
+    Si el usuario dado es participante de ese match Y el match está
+    aceptado, devuelve la fila del match (dict). Si no, devuelve None.
+    Se usa para autorizar el acceso a una conversación.
+    """
+    if not usuario_id or not usuario_tipo:
+        return None
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM matches WHERE id=%s", (match_id,))
+    match = cur.fetchone()
+    cur.close()
+
+    if not match or match['estado'] != 'aceptado':
+        return None
+
+    es_participante = (
+        (match['usuario_id'] == usuario_id and match['usuario_tipo'] == usuario_tipo) or
+        (match['perfil_match_id'] == usuario_id and match['perfil_match_tipo'] == usuario_tipo)
+    )
+    return match if es_participante else None
+
+
+@csrf_exempt
+def conversaciones_lista(request):
+    """
+    GET /api/conversaciones/
+
+    Lista todas las conversaciones (matches aceptados) del usuario, con el
+    nombre/foto de la otra persona, el último mensaje, y cuántos mensajes
+    sin leer tiene esa conversación. Es el "inbox" de mensajería.
+    """
+    opt = allow_options(request)
+    if opt:
+        return opt
+
+    if request.method != 'GET':
+        return json_err('Método no permitido. Usa GET.', 405)
+
+    try:
+        usuario_id, usuario_tipo = _usuario_actual(request)
+        usuario_id = request.GET.get('origen_id') or usuario_id
+        usuario_tipo = _normalizar_tipo_usuario(request.GET.get('origen_tipo')) or usuario_tipo
+
+        if not usuario_id or not usuario_tipo:
+            return json_err('Se requiere identificar al usuario.', 400)
+
+        usuario_id = int(usuario_id)
+
+        conn = db_conn()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            WITH mis_matches AS (
+                SELECT m.id AS match_id,
+                       CASE WHEN m.usuario_id=%(oid)s AND m.usuario_tipo=%(otipo)s
+                            THEN m.perfil_match_id ELSE m.usuario_id END AS otro_id,
+                       CASE WHEN m.usuario_id=%(oid)s AND m.usuario_tipo=%(otipo)s
+                            THEN m.perfil_match_tipo ELSE m.usuario_tipo END AS otro_tipo
+                FROM matches m
+                WHERE m.estado='aceptado' AND (
+                    (m.usuario_id=%(oid)s AND m.usuario_tipo=%(otipo)s) OR
+                    (m.perfil_match_id=%(oid)s AND m.perfil_match_tipo=%(otipo)s)
+                )
+            )
+            SELECT
+                mm.match_id, mm.otro_id, mm.otro_tipo,
+                p.nombre_completo AS otro_nombre,
+                p.foto AS otro_foto,
+                ultimo.contenido AS ultimo_mensaje,
+                ultimo.creado_en AS ultimo_mensaje_en,
+                ultimo.remitente_id AS ultimo_remitente_id,
+                ultimo.remitente_tipo AS ultimo_remitente_tipo,
+                COALESCE(no_leidos.cantidad, 0) AS no_leidos
+            FROM mis_matches mm
+            LEFT JOIN (
+                SELECT id, 'estudiante' AS tipo,
+                       CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')) AS nombre_completo,
+                       COALESCE(foto, '/static/images/default-avatar.png') AS foto
+                FROM estudiantes
+                UNION ALL
+                SELECT id, 'docente',
+                       CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')),
+                       COALESCE(foto, '/static/images/default-avatar.png')
+                FROM docentes
+                UNION ALL
+                SELECT id, 'egresado',
+                       CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')),
+                       COALESCE(foto, '/static/images/default-avatar.png')
+                FROM egresados
+            ) p ON p.id = mm.otro_id AND p.tipo = mm.otro_tipo
+            LEFT JOIN LATERAL (
+                SELECT contenido, creado_en, remitente_id, remitente_tipo
+                FROM mensajes
+                WHERE match_id = mm.match_id
+                ORDER BY creado_en DESC
+                LIMIT 1
+            ) ultimo ON true
+            LEFT JOIN (
+                SELECT match_id, COUNT(*) AS cantidad
+                FROM mensajes
+                WHERE leido = 0
+                  AND NOT (remitente_id=%(oid)s AND remitente_tipo=%(otipo)s)
+                GROUP BY match_id
+            ) no_leidos ON no_leidos.match_id = mm.match_id
+            ORDER BY COALESCE(ultimo.creado_en, TIMESTAMP '1970-01-01') DESC
+        """, {'oid': usuario_id, 'otipo': usuario_tipo})
+        rows = cur.fetchall()
+        cur.close(); conn.close()
+
+        return json_ok(rows, 'Conversaciones obtenidas correctamente.')
+
+    except Exception as e:
+        print("❌ conversaciones_lista error:", str(e))
+        import traceback
+        print(traceback.format_exc())
+        return json_err(f'Error interno: {str(e)}', 500)
+
+
+@csrf_exempt
+def mensajes_conversacion(request, match_id):
+    """
+    GET  /api/mensajes/<match_id>/   -> historial completo de la conversación
+                                         (y marca como leídos los mensajes
+                                         que te mandó la otra persona)
+    POST /api/mensajes/<match_id>/   -> manda un mensaje nuevo
+                                         body: { "contenido": "..." }
+
+    Solo los dos participantes de un match ACEPTADO pueden ver/mandar
+    mensajes en esa conversación.
+    """
+    opt = allow_options(request)
+    if opt:
+        return opt
+
+    try:
+        usuario_id, usuario_tipo = _usuario_actual(request)
+        if request.method == 'GET':
+            usuario_id = request.GET.get('origen_id') or usuario_id
+            usuario_tipo = _normalizar_tipo_usuario(request.GET.get('origen_tipo')) or usuario_tipo
+        else:
+            body_preview = json.loads(request.body or "{}") if request.body else {}
+            usuario_id = body_preview.get('origen_id') or usuario_id
+            usuario_tipo = _normalizar_tipo_usuario(body_preview.get('origen_tipo')) or usuario_tipo
+
+        if not usuario_id or not usuario_tipo:
+            return json_err('Se requiere identificar al usuario.', 400)
+        usuario_id = int(usuario_id)
+
+        conn = db_conn()
+
+        match = _match_participante(conn, match_id, usuario_id, usuario_tipo)
+        if not match:
+            conn.close()
+            return json_err(
+                'No tienes acceso a esta conversación (el match no existe, no está aceptado, o no eres parte de él).',
+                403
+            )
+
+        if request.method == 'GET':
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute("""
+                SELECT id, match_id, remitente_id, remitente_tipo, contenido, creado_en, leido
+                FROM mensajes
+                WHERE match_id=%s
+                ORDER BY creado_en ASC
+            """, (match_id,))
+            mensajes = cur.fetchall()
+
+            # Marcamos como leídos los que mandó LA OTRA persona
+            cur2 = conn.cursor()
+            cur2.execute("""
+                UPDATE mensajes
+                SET leido=1
+                WHERE match_id=%s AND leido=0
+                  AND NOT (remitente_id=%s AND remitente_tipo=%s)
+            """, (match_id, usuario_id, usuario_tipo))
+            conn.commit()
+            cur2.close(); cur.close(); conn.close()
+
+            return json_ok(mensajes, 'Mensajes obtenidos correctamente.')
+
+        elif request.method == 'POST':
+            data = json.loads(request.body or "{}")
+            contenido = (data.get('contenido') or '').strip()
+
+            if not contenido:
+                conn.close()
+                return json_err('El mensaje no puede estar vacío.', 400)
+            if len(contenido) > 2000:
+                conn.close()
+                return json_err('El mensaje es demasiado largo (máx. 2000 caracteres).', 400)
+
+            now = datetime.now()
+            cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute("""
+                INSERT INTO mensajes (match_id, remitente_id, remitente_tipo, contenido, creado_en, leido)
+                VALUES (%s,%s,%s,%s,%s,0)
+                RETURNING id, match_id, remitente_id, remitente_tipo, contenido, creado_en, leido
+            """, (match_id, usuario_id, usuario_tipo, contenido, now))
+            nuevo = cur.fetchone()
+            conn.commit()
+            cur.close(); conn.close()
+
+            return json_ok(nuevo, 'Mensaje enviado.', 201)
+
+        else:
+            conn.close()
+            return json_err('Método no permitido. Usa GET o POST.', 405)
+
+    except Exception as e:
+        print("❌ mensajes_conversacion error:", str(e))
+        import traceback
+        print(traceback.format_exc())
+        return json_err(f'Error interno: {str(e)}', 500)
+
+
+# ===================== NOTIFICACIONES =====================
+#
+# Dos fuentes distintas, combinadas en una sola respuesta:
+#   1. Filas reales de la tabla `notificaciones` (solicitudes de match,
+#      matches aceptados, interés en tus proyectos) — se crean en el
+#      momento del evento (ver _crear_notificacion en matches_solicitar,
+#      matches_aceptar, proyecto_me_interesa) y se marcan leídas a mano.
+#   2. Mensajes de chat sin leer — NO se guardan como fila en
+#      `notificaciones` (sería una fila por cada mensaje). En vez de eso,
+#      se calculan al vuelo a partir de mensajes.leido, una por
+#      conversación con pendientes. Se "marcan leídas" solas en cuanto
+#      abres esa conversación (mensajes_conversacion ya hace ese UPDATE).
+
+def _tiempo_relativo(fecha):
+    """'Hace 2 min' / 'Hace 3 h' / 'Ayer' / '14 jul' — para el campo `time`
+    que ya espera el frontend."""
+    if not fecha:
+        return ''
+    ahora = datetime.now()
+    delta = ahora - fecha
+    segundos = delta.total_seconds()
+
+    if segundos < 60:
+        return 'Justo ahora'
+    if segundos < 3600:
+        return f'Hace {int(segundos // 60)} min'
+    if segundos < 86400 and fecha.date() == ahora.date():
+        return f'Hace {int(segundos // 3600)} h'
+    if fecha.date() == (ahora - timedelta(days=1)).date():
+        return 'Ayer'
+    return fecha.strftime('%d %b')
+
+
+@csrf_exempt
+def notificaciones_lista(request):
+    """
+    GET /api/notificaciones/
+
+    Junta las notificaciones reales (tabla notificaciones) con los
+    mensajes de chat sin leer (calculados al vuelo), ordenado todo por
+    fecha descendente. Es lo que alimenta el Centro de Notificaciones.
+    """
+    opt = allow_options(request)
+    if opt:
+        return opt
+
+    if request.method != 'GET':
+        return json_err('Método no permitido. Usa GET.', 405)
+
+    try:
+        usuario_id, usuario_tipo = _usuario_actual(request)
+        usuario_id = request.GET.get('origen_id') or usuario_id
+        usuario_tipo = _normalizar_tipo_usuario(request.GET.get('origen_tipo')) or usuario_tipo
+
+        if not usuario_id or not usuario_tipo:
+            return json_err('Se requiere identificar al usuario.', 400)
+        usuario_id = int(usuario_id)
+
+        conn = db_conn()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # 1) Notificaciones reales
+        cur.execute("""
+            SELECT id, tipo, titulo, descripcion, leido, cta_label, cta_path, creado_en
+            FROM notificaciones
+            WHERE usuario_id=%s AND usuario_tipo=%s
+            ORDER BY creado_en DESC
+            LIMIT 100
+        """, (usuario_id, usuario_tipo))
+        reales = cur.fetchall()
+
+        resultado = []
+        for n in reales:
+            resultado.append({
+                'id': f'n-{n["id"]}',
+                'type': n['tipo'],
+                'title': n['titulo'],
+                'description': n['descripcion'] or '',
+                'time': _tiempo_relativo(n['creado_en']),
+                'read': bool(n['leido']),
+                'ctaLabel': n['cta_label'],
+                'ctaPath': n['cta_path'],
+                '_creado_en': n['creado_en'].isoformat(),
+            })
+
+        # 2) Mensajes sin leer, uno por conversación (sintético, sin fila propia)
+        cur.execute("""
+            WITH mis_matches AS (
+                SELECT m.id AS match_id,
+                       CASE WHEN m.usuario_id=%(oid)s AND m.usuario_tipo=%(otipo)s
+                            THEN m.perfil_match_id ELSE m.usuario_id END AS otro_id,
+                       CASE WHEN m.usuario_id=%(oid)s AND m.usuario_tipo=%(otipo)s
+                            THEN m.perfil_match_tipo ELSE m.usuario_tipo END AS otro_tipo
+                FROM matches m
+                WHERE m.estado='aceptado' AND (
+                    (m.usuario_id=%(oid)s AND m.usuario_tipo=%(otipo)s) OR
+                    (m.perfil_match_id=%(oid)s AND m.perfil_match_tipo=%(otipo)s)
+                )
+            )
+            SELECT
+                mm.match_id, p.nombre_completo AS otro_nombre,
+                COUNT(msj.id) AS cantidad,
+                MAX(msj.creado_en) AS ultimo_en
+            FROM mis_matches mm
+            JOIN mensajes msj ON msj.match_id = mm.match_id
+                AND msj.leido = 0
+                AND NOT (msj.remitente_id=%(oid)s AND msj.remitente_tipo=%(otipo)s)
+            LEFT JOIN (
+                SELECT id, 'estudiante' AS tipo,
+                       CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')) AS nombre_completo
+                FROM estudiantes
+                UNION ALL
+                SELECT id, 'docente',
+                       CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, ''))
+                FROM docentes
+                UNION ALL
+                SELECT id, 'egresado',
+                       CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, ''))
+                FROM egresados
+            ) p ON p.id = mm.otro_id AND p.tipo = mm.otro_tipo
+            GROUP BY mm.match_id, p.nombre_completo
+        """, {'oid': usuario_id, 'otipo': usuario_tipo})
+        mensajes_sin_leer = cur.fetchall()
+        cur.close(); conn.close()
+
+        for c in mensajes_sin_leer:
+            plural = 's' if c['cantidad'] > 1 else ''
+            resultado.append({
+                'id': f'msg-{c["match_id"]}',
+                'type': 'message',
+                'title': f'Mensaje{plural} de {c["otro_nombre"] or "alguien"}',
+                'description': f'Tienes {c["cantidad"]} mensaje{plural} sin leer.',
+                'time': _tiempo_relativo(c['ultimo_en']),
+                'read': False,
+                'ctaLabel': 'Responder',
+                'ctaPath': f'/mensajes/{c["match_id"]}',
+                '_creado_en': c['ultimo_en'].isoformat(),
+            })
+
+        resultado.sort(key=lambda n: n['_creado_en'], reverse=True)
+        for n in resultado:
+            del n['_creado_en']
+
+        return json_ok(resultado, 'Notificaciones obtenidas correctamente.')
+
+    except Exception as e:
+        print("❌ notificaciones_lista error:", str(e))
+        import traceback
+        print(traceback.format_exc())
+        return json_err(f'Error interno: {str(e)}', 500)
+
+
+@csrf_exempt
+def notificaciones_marcar_leida(request):
+    """
+    POST /api/notificaciones/marcar-leida/
+    body: { "notificacion_id": "n-12" }
+
+    Solo aplica a notificaciones reales (prefijo 'n-'); las de mensajes
+    ('msg-...') se marcan solas al abrir esa conversación.
+    """
+    opt = allow_options(request)
+    if opt:
+        return opt
+    if request.method != 'POST':
+        return json_err('Método no permitido. Usa POST.', 405)
+
+    try:
+        usuario_id, usuario_tipo = _usuario_actual(request)
+        if not usuario_id or not usuario_tipo:
+            return json_err('Se requiere identificar al usuario.', 400)
+
+        data = json.loads(request.body or "{}")
+        notif_id = str(data.get('notificacion_id') or '')
+        if not notif_id.startswith('n-'):
+            return json_ok(None, 'Nada que marcar (notificación sintética).')
+
+        notif_id = notif_id[2:]
+
+        conn = db_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE notificaciones SET leido=1
+            WHERE id=%s AND usuario_id=%s AND usuario_tipo=%s
+        """, (notif_id, usuario_id, usuario_tipo))
+        conn.commit()
+        cur.close(); conn.close()
+
+        return json_ok(None, 'Notificación marcada como leída.')
+
+    except Exception as e:
+        print("❌ notificaciones_marcar_leida error:", str(e))
+        return json_err(f'Error interno: {str(e)}', 500)
+
+
+@csrf_exempt
+def notificaciones_marcar_todas_leidas(request):
+    """POST /api/notificaciones/marcar-todas-leidas/"""
+    opt = allow_options(request)
+    if opt:
+        return opt
+    if request.method != 'POST':
+        return json_err('Método no permitido. Usa POST.', 405)
+
+    try:
+        usuario_id, usuario_tipo = _usuario_actual(request)
+        if not usuario_id or not usuario_tipo:
+            return json_err('Se requiere identificar al usuario.', 400)
+
+        conn = db_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE notificaciones SET leido=1
+            WHERE usuario_id=%s AND usuario_tipo=%s AND leido=0
+        """, (usuario_id, usuario_tipo))
+        conn.commit()
+        cur.close(); conn.close()
+
+        return json_ok(None, 'Todas las notificaciones marcadas como leídas.')
+
+    except Exception as e:
+        print("❌ notificaciones_marcar_todas_leidas error:", str(e))
+        return json_err(f'Error interno: {str(e)}', 500)
+
+
+# ===================== PREFERENCIAS DE BÚSQUEDA (para el matching) =====================
+
+@csrf_exempt
+def preferencias_usuario(request):
+    """
+    GET  /api/preferencias/?usuario_id=1&usuario_tipo=estudiante
+        -> devuelve la preferencia guardada, o null si no ha configurado nada.
+
+    POST /api/preferencias/
+        Body JSON:
+        {
+          "usuario_id": 1,
+          "usuario_tipo": "estudiante",
+          "habilidades_buscadas": "React, diseño UX",
+          "intereses_buscados": "inteligencia artificial, videojuegos",
+          "tipo_colaboracion": "proyecto"   # proyecto | investigacion | startup | estudio
+        }
+        -> crea o actualiza (upsert) la fila en user_preferences.
+
+    Esto es lo que usa matching.py como fuente principal para calcular
+    compatibilidad: "qué está buscando el usuario", no solo su propio perfil.
+    """
+    opt = allow_options(request)
+    if opt:
+        return opt
+
+    try:
+        conn = db_conn()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        if request.method == 'GET':
+            usuario_id = request.GET.get('usuario_id')
+            usuario_tipo = _normalizar_tipo_usuario(request.GET.get('usuario_tipo'))
+
+            if not usuario_id or not usuario_tipo:
+                cur.close(); conn.close()
+                return json_err('Se requieren usuario_id y usuario_tipo.', 400)
+
+            pref = matching.obtener_preferencia(conn, int(usuario_id), usuario_tipo)
+            cur.close(); conn.close()
+            return json_ok(pref, 'Preferencia obtenida correctamente.')
+
+        elif request.method == 'POST':
+            data = json.loads(request.body or "{}")
+
+            usuario_id = data.get('usuario_id')
+            usuario_tipo = _normalizar_tipo_usuario(data.get('usuario_tipo'))
+            habilidades_buscadas = (data.get('habilidades_buscadas') or '').strip()
+            intereses_buscados = (data.get('intereses_buscados') or '').strip()
+            tipo_colaboracion = (data.get('tipo_colaboracion') or 'proyecto').strip()
+
+            if not usuario_id or not usuario_tipo:
+                cur.close(); conn.close()
+                return json_err('usuario_id y usuario_tipo son obligatorios.', 400)
+
+            usuario_id = int(usuario_id)
+            now = datetime.now()
+
+            cur.execute(
+                "SELECT id FROM user_preferences WHERE usuario_id=%s AND usuario_tipo=%s LIMIT 1",
+                (usuario_id, usuario_tipo),
+            )
+            row = cur.fetchone()
+
+            cur2 = conn.cursor()
+            if row:
+                cur2.execute("""
+                    UPDATE user_preferences
+                    SET habilidades_buscadas=%s, intereses_buscados=%s,
+                        tipo_colaboracion=%s, updated_at=%s
+                    WHERE id=%s
+                """, (habilidades_buscadas or None, intereses_buscados or None,
+                      tipo_colaboracion, now, row['id']))
+                pref_id = row['id']
+            else:
+                cur2.execute("""
+                    INSERT INTO user_preferences
+                        (usuario_id, usuario_tipo, habilidades_buscadas,
+                         intereses_buscados, tipo_colaboracion, created_at, updated_at)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s)
+                    RETURNING id
+                """, (usuario_id, usuario_tipo, habilidades_buscadas or None,
+                      intereses_buscados or None, tipo_colaboracion, now, now))
+                pref_id = cur2.fetchone()[0]
+            conn.commit()
+            cur2.close(); cur.close(); conn.close()
+
+            return json_ok(
+                {
+                    'id': pref_id,
+                    'usuario_id': usuario_id,
+                    'usuario_tipo': usuario_tipo,
+                    'habilidades_buscadas': habilidades_buscadas,
+                    'intereses_buscados': intereses_buscados,
+                    'tipo_colaboracion': tipo_colaboracion,
+                },
+                'Preferencias guardadas correctamente.'
+            )
+
+        else:
+            cur.close(); conn.close()
+            return json_err('Método no permitido. Usa GET o POST.', 405)
+
+    except Exception as e:
+        print("❌ preferencias_usuario error:", str(e))
+        import traceback
+        print(traceback.format_exc())
+        return json_err(f'Error interno: {str(e)}', 500)
+
 
 # ===================== PROYECTOS =====================
 
@@ -1660,45 +2723,74 @@ def proyectos_list(request):
 
     try:
         conn = db_conn()
-        cur = conn.cursor(dictionary=True)
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         if request.method == 'GET':
             q = (request.GET.get('q') or '').strip()
             tipo = (request.GET.get('tipo') or '').strip()
             carrera = (request.GET.get('carrera') or '').strip()
+            estado = (request.GET.get('estado') or '').strip()
+            creador_id_f = (request.GET.get('creador_id') or request.GET.get('perfil_id') or '').strip()
+            creador_tipo_f = _normalizar_tipo_usuario(
+                request.GET.get('creador_tipo') or request.GET.get('perfil_tipo')
+            )
 
             sql = """
                 SELECT 
-                    id,
-                    titulo,
-                    descripcion,
-                    tipo,
-                    modalidad,
-                    carrera,
-                    area_interes,
-                    creador_id,
-                    creador_tipo,
-                    creado_en,
-                    actualizado_en
-                FROM proyectos
+                    p.id,
+                    p.titulo,
+                    p.descripcion,
+                    p.tipo,
+                    p.modalidad,
+                    p.carrera,
+                    p.area_interes,
+                    p.habilidades_requeridas,
+                    p.estado,
+                    p.creador_id,
+                    p.creador_tipo,
+                    creadores.nombre_completo AS creador_nombre,
+                    p.creado_en,
+                    p.actualizado_en
+                FROM proyectos p
+                LEFT JOIN (
+                    SELECT id, 'estudiante' AS tipo,
+                           CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')) AS nombre_completo
+                    FROM estudiantes
+                    UNION ALL
+                    SELECT id, 'docente',
+                           CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, ''))
+                    FROM docentes
+                    UNION ALL
+                    SELECT id, 'egresado',
+                           CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, ''))
+                    FROM egresados
+                ) creadores ON creadores.id = p.creador_id AND creadores.tipo = p.creador_tipo
                 WHERE 1=1
             """
             params = []
 
             if q:
-                sql += " AND (titulo LIKE %s OR descripcion LIKE %s)"
+                sql += " AND (p.titulo ILIKE %s OR p.descripcion ILIKE %s)"
                 like = f"%{q}%"
                 params.extend([like, like])
 
             if tipo:
-                sql += " AND tipo = %s"
+                sql += " AND p.tipo = %s"
                 params.append(tipo)
 
             if carrera:
-                sql += " AND carrera = %s"
+                sql += " AND p.carrera = %s"
                 params.append(carrera)
 
-            sql += " ORDER BY creado_en DESC"
+            if estado:
+                sql += " AND p.estado = %s"
+                params.append(estado)
+
+            if creador_id_f and creador_tipo_f:
+                sql += " AND p.creador_id = %s AND p.creador_tipo = %s"
+                params.extend([int(creador_id_f), creador_tipo_f])
+
+            sql += " ORDER BY p.creado_en DESC"
 
             cur.execute(sql, tuple(params))
             rows = cur.fetchall()
@@ -1717,6 +2809,11 @@ def proyectos_list(request):
             modalidad = (data.get('modalidad') or '').strip()  # p.ej. 'online', 'presencial'
             carrera = (data.get('carrera') or '').strip()
             area_interes = (data.get('area_interes') or '').strip()
+            habilidades_requeridas = (data.get('habilidades_requeridas') or '').strip()
+            estado = (data.get('estado') or 'abierto').strip()
+
+            if estado not in ('abierto', 'en progreso', 'cerrado'):
+                estado = 'abierto'
 
             creador_id = data.get('creador_id')
             creador_tipo = _normalizar_tipo_usuario(data.get('creador_tipo'))
@@ -1732,8 +2829,9 @@ def proyectos_list(request):
             cur.execute("""
                 INSERT INTO proyectos
                     (titulo, descripcion, tipo, modalidad, carrera, area_interes,
-                     creador_id, creador_tipo, creado_en, actualizado_en)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                     habilidades_requeridas, estado, creador_id, creador_tipo, creado_en, actualizado_en)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                RETURNING id
             """, (
                 titulo,
                 descripcion,
@@ -1741,13 +2839,15 @@ def proyectos_list(request):
                 modalidad or None,
                 carrera or None,
                 area_interes or None,
+                habilidades_requeridas or None,
+                estado,
                 creador_id,
                 creador_tipo,
                 now,
                 now
             ))
+            proyecto_id = cur.fetchone()['id']
             conn.commit()
-            proyecto_id = cur.lastrowid
             cur.close()
             conn.close()
 
@@ -1760,6 +2860,8 @@ def proyectos_list(request):
                     "modalidad": modalidad,
                     "carrera": carrera,
                     "area_interes": area_interes,
+                    "habilidades_requeridas": habilidades_requeridas,
+                    "estado": estado,
                     "creador_id": creador_id,
                     "creador_tipo": creador_tipo,
                     "creado_en": now.strftime("%Y-%m-%d %H:%M:%S"),
@@ -1773,8 +2875,8 @@ def proyectos_list(request):
             conn.close()
             return json_err("Método no permitido. Usa GET o POST.", 405)
 
-    except mysql.connector.Error as e:
-        print("❌ proyectos_list MySQL error:", str(e))
+    except psycopg2.Error as e:
+        print("❌ proyectos_list DB error:", str(e))
         return json_err(f"Error de base de datos: {str(e)}", 500)
     except Exception as e:
         print("❌ proyectos_list error:", str(e))
@@ -1817,10 +2919,10 @@ def proyecto_me_interesa(request, proyecto_id):
         now = datetime.now()
 
         conn = db_conn()
-        cur = conn.cursor(dictionary=True)
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         # Verificamos que el proyecto exista
-        cur.execute("SELECT id FROM proyectos WHERE id=%s", (proyecto_id,))
+        cur.execute("SELECT id, titulo, creador_id, creador_tipo FROM proyectos WHERE id=%s", (proyecto_id,))
         proyecto = cur.fetchone()
         if not proyecto:
             cur.close()
@@ -1855,9 +2957,17 @@ def proyecto_me_interesa(request, proyecto_id):
                 INSERT INTO proyecto_intereses
                     (proyecto_id, usuario_id, usuario_tipo, mensaje, creado_en, actualizado_en)
                 VALUES (%s,%s,%s,%s,%s,%s)
+                RETURNING id
             """, (proyecto_id, usuario_id, usuario_tipo, mensaje, now, now))
+            interes_id = cur2.fetchone()[0]
+            if proyecto['creador_id'] and proyecto['creador_tipo']:
+                _crear_notificacion(
+                    conn, proyecto['creador_id'], proyecto['creador_tipo'], 'proyecto',
+                    'Interés en tu proyecto',
+                    f'{_nombre_perfil(conn, usuario_tipo, usuario_id)} quiere colaborar en "{proyecto["titulo"]}".',
+                    'Ver proyectos', '/proyectos'
+                )
             conn.commit()
-            interes_id = cur2.lastrowid
             cur2.close()
             accion = "creado"
 
@@ -1875,8 +2985,8 @@ def proyecto_me_interesa(request, proyecto_id):
             "Interés en el proyecto registrado correctamente."
         )
 
-    except mysql.connector.Error as e:
-        print("❌ proyecto_me_interesa MySQL error:", str(e))
+    except psycopg2.Error as e:
+        print("❌ proyecto_me_interesa DB error:", str(e))
         return json_err(f"Error de base de datos: {str(e)}", 500)
     except Exception as e:
         print("❌ proyecto_me_interesa error:", str(e))

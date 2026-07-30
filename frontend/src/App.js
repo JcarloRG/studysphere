@@ -12,61 +12,15 @@ import Comunidad from './components/Comunidad';
 import VerificationCode from './components/forms/VerificationCode.jsx';
 import PerfilVista from './components/perfil_vista.jsx';
 import BuscarProyectos from './components/BuscarProyectos';
+import CrearProyecto from './components/forms/CrearProyecto.jsx';
+import EditarPerfil from './components/forms/EditarPerfil.jsx';
+import MisMatchesPage from './pages/MisMatchesPage.jsx';
+import Mensajes from './pages/Mensajes.jsx';
+import ChatConversacion from './pages/ChatConversacion.jsx';
 
 import VerificarEmail from './pages/VerifyEmail.jsx';
-import { apiService } from './services/api';
 
 import './App.css';
-
-/** Página simple para ver todos mis matches aceptados */
-function MisMatchesPage() {
-  const [matches, setMatches] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState('');
-
-  React.useEffect(() => {
-    const cargar = async () => {
-      try {
-        const res = await apiService.obtenerMisMatches();
-        if (res.success) {
-          setMatches(res.matches || []);
-        } else {
-          setError(res.message || 'No se pudieron cargar los matches');
-        }
-      } catch (e) {
-        setError(e.message || 'Error al obtener matches');
-      } finally {
-        setLoading(false);
-      }
-    };
-    cargar();
-  }, []);
-
-  if (loading) return <div style={{ padding: '2rem' }}>Cargando tus matches...</div>;
-  if (error) return <div style={{ padding: '2rem', color: 'red' }}>{error}</div>;
-
-  if (!matches.length) {
-    return (
-      <div style={{ padding: '2rem' }}>
-        <h2>Mis matches</h2>
-        <p>Todavía no tienes matches aceptados.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ padding: '2rem' }}>
-      <h2>Mis matches</h2>
-      <ul>
-        {matches.map((m) => (
-          <li key={m.id}>
-            Match #{m.id} – estado: {m.estado}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 function App() {
   return (
@@ -96,15 +50,19 @@ function App() {
 
           {/* Perfil propio (con edición, borrar cuenta, cambiar foto, etc.) */}
           <Route path="/perfil/:tipo/:id" element={<Perfil />} />
+          <Route path="/editar/:tipo/:id" element={<EditarPerfil />} />
 
           {/* Perfil de solo vista pública */}
           <Route path="/perfil_vista/:tipo/:id" element={<PerfilVista />} />
 
           {/* Proyectos: buscador / listado */}
           <Route path="/proyectos" element={<BuscarProyectos />} />
+          <Route path="/proyectos/crear" element={<CrearProyecto />} />
 
-          {/* Mis matches (matches aceptados) */}
+          {/* Mis conexiones (solicitudes recibidas/enviadas + colaboraciones aceptadas) */}
           <Route path="/mis-matches" element={<MisMatchesPage />} />
+          <Route path="/mensajes" element={<Mensajes />} />
+          <Route path="/mensajes/:matchId" element={<ChatConversacion />} />
 
           {/* Si en algún momento quieres admin panel:
           <Route path="/admin" element={<AdminPanel />} /> 

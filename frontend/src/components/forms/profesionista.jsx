@@ -6,7 +6,9 @@ import './FormStyles.css';
 const EgresadoForm = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    nombre_completo: '',
+    nombre: '',
+    apellido_paterno: '',
+    apellido_materno: '',
     correo_institucional: '',
     password: '',
     password2: '',
@@ -45,7 +47,8 @@ const EgresadoForm = () => {
     setMessageType('');
 
     if (
-      !formData.nombre_completo ||
+      !formData.nombre ||
+      !formData.apellido_paterno ||
       !formData.correo_institucional ||
       !formData.carrera_egreso ||
       !formData.anio_egreso ||
@@ -204,24 +207,55 @@ const EgresadoForm = () => {
                 </div>
               </div>
 
-              <div className="form-group-custom">
-                <label htmlFor="nombre_completo" className="required-custom">Nombre Completo</label>
-                <input
-                  type="text"
-                  id="nombre_completo"
-                  name="nombre_completo"
-                  value={formData.nombre_completo}
-                  onChange={handleChange}
-                  required
-                  placeholder="Ej: Carlos Rodríguez Martínez"
-                  disabled={isLoading}
-                  className="form-input-custom"
-                />
+              <div className="form-row-custom">
+                <div className="form-group-custom">
+                  <label htmlFor="nombre" className="required-custom">Nombre(s)</label>
+                  <input
+                    type="text"
+                    id="nombre"
+                    name="nombre"
+                    value={formData.nombre}
+                    onChange={handleChange}
+                    required
+                    placeholder="Ej: Carlos"
+                    disabled={isLoading}
+                    className="form-input-custom"
+                  />
+                </div>
+
+                <div className="form-group-custom">
+                  <label htmlFor="apellido_paterno" className="required-custom">Apellido Paterno</label>
+                  <input
+                    type="text"
+                    id="apellido_paterno"
+                    name="apellido_paterno"
+                    value={formData.apellido_paterno}
+                    onChange={handleChange}
+                    required
+                    placeholder="Ej: Rodríguez"
+                    disabled={isLoading}
+                    className="form-input-custom"
+                  />
+                </div>
+
+                <div className="form-group-custom">
+                  <label htmlFor="apellido_materno" className="optional-custom">Apellido Materno</label>
+                  <input
+                    type="text"
+                    id="apellido_materno"
+                    name="apellido_materno"
+                    value={formData.apellido_materno}
+                    onChange={handleChange}
+                    placeholder="Ej: Martínez"
+                    disabled={isLoading}
+                    className="form-input-custom"
+                  />
+                </div>
               </div>
 
               <div className="form-row-custom">
                 <div className="form-group-custom">
-                  <label htmlFor="correo_institucional" className="required-custom">Correo</label>
+                  <label htmlFor="correo_institucional" className="required-custom">Correo Electrónico</label>
                   <input
                     type="email"
                     id="correo_institucional"

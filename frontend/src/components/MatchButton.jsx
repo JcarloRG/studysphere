@@ -13,7 +13,7 @@ export default function MatchButton({ perfilId, tipoPerfil }) {
     async function fetchEstado() {
       try {
         setLoading(true);
-        const res = await apiService.verificarEstadoMatch(perfilId);
+        const res = await apiService.verificarEstadoMatch(perfilId, tipoPerfil);
         if (!isMounted) return;
         setEstado(res.estado || "no_match");
         setMensaje(res.message || "");

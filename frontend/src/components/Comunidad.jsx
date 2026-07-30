@@ -1,8 +1,9 @@
 // src/components/Comunidad.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { apiService, API_BASE_URL } from '../services/api';
+import AppHeader from './AppHeader';
 import './Comunidad.css';
 
 // 🌟 HOOK DE AUTENTICACIÓN
@@ -55,6 +56,14 @@ const Comunidad = () => {
   const [mensajeExito, setMensajeExito] = useState('');
   const [showCollaborationModal, setShowCollaborationModal] = useState(false);
   const [lastCollaboratedUser, setLastCollaboratedUser] = useState(null);
+
+  // ---- Swipe (arrastrar la tarjeta como en Tinder) ----
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [flyDirection, setFlyDirection] = useState(null); // 'like' | 'pass' | null
+  const dragStartX = useRef(0);
+  const cardRef = useRef(null);
+  const SWIPE_THRESHOLD = 110;
 
   const filters = [
     { id: 'todos', label: '👥 Todos', emoji: '👥' },
@@ -125,12 +134,14 @@ const Comunidad = () => {
     }
   };
 
-  // 🔄 Cargar matches del usuario (para el contador de colaboraciones)
+  // 🔄 Cargar matches del usuario (para el contador de colaboraciones de la
+  // portada; el badge de pendientes en el nav ahora lo maneja AppHeader)
   const cargarMisMatches = async () => {
     try {
-      const res = await apiService.obtenerMisMatches();
+      // Solo aceptadas, para que el contador de la portada no mezcle
+      // pendientes/rechazadas con colaboraciones reales
+      const res = await apiService.obtenerMisMatches('aceptado');
       if (res.success) {
-        // res.matches viene del backend
         setColaboraciones(res.matches || []);
       } else {
         console.error('Error obteniendo mis matches:', res.message);
@@ -207,6 +218,55 @@ const Comunidad = () => {
       prev >= perfilesRecomendados.length - 1 ? 0 : prev + 1
     );
 
+  // Al pasar al siguiente perfil, la tarjeta nueva siempre arranca centrada
+  useEffect(() => {
+    setDragX(0);
+    setFlyDirection(null);
+  }, [perfilActualIndex]);
+
+  const triggerLike = () => {
+    if (flyDirection) return; // ya está animando, ignora doble clic/gesto
+    setFlyDirection('like');
+    setTimeout(() => handleColaborar(perfilActual), 180);
+  };
+
+  const triggerPass = () => {
+    if (flyDirection) return;
+    setFlyDirection('pass');
+    setTimeout(() => handlePass(), 180);
+  };
+
+  const onDragStart = (clientX) => {
+    if (flyDirection) return;
+    setDragging(true);
+    dragStartX.current = clientX;
+  };
+
+  const onDragMove = (clientX) => {
+    if (!dragging) return;
+    setDragX(clientX - dragStartX.current);
+  };
+
+  const onDragEnd = () => {
+    if (!dragging) return;
+    setDragging(false);
+
+    if (dragX > SWIPE_THRESHOLD) {
+      triggerLike();
+    } else if (dragX < -SWIPE_THRESHOLD) {
+      triggerPass();
+    } else {
+      setDragX(0);
+    }
+  };
+
+  const handlePointerDown = (e) => onDragStart(e.clientX);
+  const handlePointerMove = (e) => onDragMove(e.clientX);
+  const handlePointerUp = () => onDragEnd();
+  const handleTouchStart = (e) => onDragStart(e.touches[0].clientX);
+  const handleTouchMove = (e) => onDragMove(e.touches[0].clientX);
+  const handleTouchEnd = () => onDragEnd();
+
   // Filtro de respaldo en Frontend (excluir logueado + búsqueda)
   const getPerfilesFiltrados = () => {
     let perfiles = [];
@@ -274,6 +334,30 @@ const Comunidad = () => {
       ? '#4ecdc4'
       : '#6b7280';
 
+  // Convierte "Python, React, UX" -> ['Python','React','UX'], recortado a `max`
+  const parseTags = (texto, max = 4) => {
+    if (!texto) return [];
+    return texto
+      .split(/[,;]+/)
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .slice(0, max);
+  };
+
+  const compatTier = (score) => {
+    if (score === null || score === undefined) return 'sin-datos';
+    if (score >= 75) return 'alta';
+    if (score >= 45) return 'media';
+    return 'baja';
+  };
+
+  const compatLabel = (score) => {
+    if (score === null || score === undefined) return 'Completa tu perfil para ver tu compatibilidad';
+    if (score >= 75) return 'Alta afinidad académica';
+    if (score >= 45) return 'Afinidad moderada';
+    return 'Afinidad parcial';
+  };
+
   const perfilesFiltrados = getPerfilesFiltrados();
   const perfilActual = perfilesRecomendados[perfilActualIndex];
 
@@ -286,23 +370,7 @@ const Comunidad = () => {
         <div className="shape shape-4"></div>
       </div>
 
-      <header className="premium-header">
-        <div className="header-content">
-          <div className="logo-section">
-            <img src="/logo192.png" alt="StudySphere Logo" className="site-logo" />
-            <h1>StudySphere</h1>
-          </div>
-          <nav className="nav-actions">
-            <Link
-              to={currentUserId ? `/perfil/${currentUserType}/${currentUserId}` : '/'}
-              className="nav-btn profile-nav-btn"
-            >
-              <span className="btn-icon">👤</span>
-              <span>Mi Perfil</span>
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <AppHeader />
 
       <div className="comunidad-content">
         {/* HERO */}
@@ -425,7 +493,7 @@ const Comunidad = () => {
           <section className="matching-section">
             <div className="section-header">
               <h2>🔍 Descubre Colaboradores</h2>
-              <p>Encuentra personas con intereses académicos similares</p>
+              <p>Desliza a la derecha para colaborar, a la izquierda para pasar</p>
             </div>
 
             {loading ? (
@@ -444,12 +512,46 @@ const Comunidad = () => {
               </div>
             ) : perfilActual ? (
               <div className="matching-card-container">
-                <div className="matching-card">
-                  <div className="compatibility-badge">
-                    <span className="compatibility-score">
-                      {Math.floor(Math.random() * 30) + 70}%
-                    </span>
-                    <span>compatibilidad académica</span>
+                <div
+                  ref={cardRef}
+                  className={`matching-card ${flyDirection ? `fly-${flyDirection}` : ''} ${dragging ? 'dragging' : ''}`}
+                  style={
+                    flyDirection
+                      ? undefined
+                      : {
+                          transform: `translateX(${dragX}px) rotate(${dragX / 18}deg)`,
+                          transition: dragging ? 'none' : 'transform 0.3s ease',
+                        }
+                  }
+                  onPointerDown={handlePointerDown}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                  onPointerLeave={handlePointerUp}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                >
+                  {/* Sellos de LIKE / PASS que aparecen mientras arrastras */}
+                  <div
+                    className="swipe-stamp swipe-stamp-like"
+                    style={{ opacity: Math.min(Math.max(dragX / SWIPE_THRESHOLD, 0), 1) }}
+                  >
+                    Colaborar
+                  </div>
+                  <div
+                    className="swipe-stamp swipe-stamp-pass"
+                    style={{ opacity: Math.min(Math.max(-dragX / SWIPE_THRESHOLD, 0), 1) }}
+                  >
+                    Pasar
+                  </div>
+
+                  <div className={`compatibility-badge tier-${compatTier(perfilActual.compatibilidad)}`}>
+                    {perfilActual.compatibilidad !== null && perfilActual.compatibilidad !== undefined ? (
+                      <span className="compatibility-score">{perfilActual.compatibilidad}%</span>
+                    ) : (
+                      <span className="compatibility-score compatibility-score-empty">—</span>
+                    )}
+                    <span>{compatLabel(perfilActual.compatibilidad)}</span>
                   </div>
 
                   <div className="matching-avatar-wrap">
@@ -457,6 +559,7 @@ const Comunidad = () => {
                       className="avatar avatar-xl"
                       src={getAvatarUrl(perfilActual)}
                       alt="Avatar"
+                      draggable="false"
                       onError={(e) => {
                         e.currentTarget.onerror = null;
                         e.currentTarget.src = avatarFromName(
@@ -505,41 +608,48 @@ const Comunidad = () => {
                     </p>
                   </div>
 
-                  <div className="profile-bio">
-                    <p>
-                      <strong>Interesado en:</strong>{' '}
-                      {perfilActual.area_interes || 'Colaboración académica'}
-                    </p>
-                  </div>
+                  {parseTags(perfilActual.area_interes, 4).length > 0 && (
+                    <div className="profile-skills-section">
+                      <h4>Le interesa</h4>
+                      <div className="skills-tags">
+                        {parseTags(perfilActual.area_interes, 4).map((s, i) => (
+                          <span key={i} className="skill-tag interes-tag">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-                  {perfilActual.habilidades && (
+                  {parseTags(perfilActual.habilidades, 4).length > 0 && (
                     <div className="profile-skills-section">
                       <h4>Habilidades</h4>
                       <div className="skills-tags">
-                        {perfilActual.habilidades
-                          .split(',')
-                          .slice(0, 4)
-                          .map((s, i) => (
-                            <span key={i} className="skill-tag">
-                              {s.trim()}
-                            </span>
-                          ))}
+                        {parseTags(perfilActual.habilidades, 4).map((s, i) => (
+                          <span key={i} className="skill-tag">
+                            {s}
+                          </span>
+                        ))}
                       </div>
                     </div>
                   )}
 
                   <div className="matching-actions">
-                    <button className="pass-btn" onClick={handlePass}>
+                    <button className="pass-btn" onClick={triggerPass}>
                       <span className="action-icon">✕</span>Pasar
                     </button>
                     <button
                       className="like-btn"
-                      onClick={() => handleColaborar(perfilActual)}
+                      onClick={triggerLike}
                     >
                       <span className="action-icon">🤝</span>Colaborar
                     </button>
                   </div>
                 </div>
+
+                <p className="matching-counter">
+                  {perfilActualIndex + 1} de {perfilesRecomendados.length} sugerencias
+                </p>
               </div>
             ) : null}
           </section>
@@ -633,16 +743,24 @@ const Comunidad = () => {
                         <p className="member-email">
                           📧 {p.correo_institucional || 'Correo no disponible'}
                         </p>
-                        {p.habilidades && (
+                        {parseTags(p.habilidades, 3).length > 0 && (
                           <div className="member-skills">
-                            <strong>Habilidades:</strong>
-                            <span>{p.habilidades}</span>
+                            <strong>Habilidades</strong>
+                            <div className="skills-tags">
+                              {parseTags(p.habilidades, 3).map((s, i) => (
+                                <span key={i} className="skill-tag skill-tag-sm">{s}</span>
+                              ))}
+                            </div>
                           </div>
                         )}
-                        {p.area_interes && (
+                        {parseTags(p.area_interes, 3).length > 0 && (
                           <div className="member-interests">
-                            <strong>Intereses:</strong>
-                            <span>{p.area_interes}</span>
+                            <strong>Le interesa</strong>
+                            <div className="skills-tags">
+                              {parseTags(p.area_interes, 3).map((s, i) => (
+                                <span key={i} className="skill-tag skill-tag-sm interes-tag">{s}</span>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>

@@ -1,7 +1,8 @@
-// src/components/Perfil.jsx
+// src/components/perfil_vista.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { apiService, API_BASE_URL } from '../services/api';
+import AppHeader from './AppHeader';
 import './Perfil.css';
 
 // 🌟 SIMULACIÓN DE AUTENTICACIÓN (MANTENIDA)
@@ -12,7 +13,7 @@ const useAuth = () => {
     const currentUserId = storedId ? Number(storedId) : null; 
     const currentUserType = storedType || null; 
     
-    return { currentUserId, currentUserType, isAdmin: currentUserId === 1 };
+    return { currentUserId, currentUserType };
 };
 // ----------------------------------------------------------------------
 
@@ -29,8 +30,10 @@ const Perfil = () => {
 
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef(null);
+    const [contactando, setContactando] = useState(false);
+    const [contactoMensaje, setContactoMensaje] = useState('');
 
-    const { currentUserId, currentUserType, isAdmin } = useAuth();
+    const { currentUserId, currentUserType } = useAuth();
     const perfilId = Number(id);
     const isOwner = perfilId === currentUserId && tipo === currentUserType;
     
@@ -102,14 +105,33 @@ const Perfil = () => {
         }
     };
     
-    // Función de Contactar con protección (MANTENIDO)
-    const handleContactar = () => {
-        if (!perfil) return; 
-        const subject = `Interés en colaborar - ${perfil.nombre_completo}`;
-        const body = `Hola ${perfil.nombre_completo},\n\nMe interesa colaborar contigo...`;
-        window.location.href = `mailto:${perfil.correo_institucional}?subject=${encodeURIComponent(
-            subject
-        )}&body=${encodeURIComponent(body)}`;
+    // Envía una solicitud de colaboración real (mismo flujo que "Colaborar" en Comunidad)
+    const handleContactar = async () => {
+        if (!perfil || contactando) return;
+
+        if (!currentUserId || !currentUserType) {
+            setContactoMensaje('Necesitas iniciar sesión para contactar a alguien.');
+            return;
+        }
+
+        setContactando(true);
+        setContactoMensaje('');
+        try {
+            const res = await apiService.enviarSolicitudMatch(perfilId, tipo);
+            if (res.success) {
+                setContactoMensaje(
+                    res.data?.estado === 'aceptado'
+                        ? '¡Es un match! Ya pueden escribirse por mensajes.'
+                        : 'Solicitud enviada. Te avisaremos si la acepta.'
+                );
+            } else {
+                setContactoMensaje(res.message || 'No se pudo enviar la solicitud.');
+            }
+        } catch (err) {
+            setContactoMensaje(err.message || 'Error al enviar la solicitud.');
+        } finally {
+            setContactando(false);
+        }
     };
 
     // Foto: handlers (MANTENIDO)
@@ -164,7 +186,6 @@ const Perfil = () => {
                             </div>
 
                             {tipo === 'estudiante' && (<>
-                                <div className="info-item-custom"><label>Núm. Control</label><p>{perfil.numero_control}</p></div>
                                 <div className="info-item-custom"><label>Carrera Actual</label><p>{perfil.carrera_actual}</p></div>
                                 <div className="info-item-custom"><label>Semestre</label><p>{perfil.semestre || 'N/E'}</p></div>
                                 <div className="info-item-custom"><label>Otra Carrera</label><p>{perfil.otra_carrera || 'No'}</p></div>
@@ -206,6 +227,52 @@ const Perfil = () => {
             );
         }
 
+        if (activeTab === 'habilidades') {
+            const logrosLabel =
+                tipo === 'docente' ? 'Logros' : tipo === 'egresado' ? 'Logros' : null;
+            const logrosValor = tipo === 'docente' || tipo === 'egresado' ? perfil.logros : null;
+            const competenciasValor = tipo === 'egresado' ? perfil.competencias : null;
+            const areaInteresValor = tipo === 'estudiante' ? perfil.area_interes : null;
+
+            return (
+                <>
+                    <div className="info-section-custom full-width">
+                        <h3 className="section-title-custom">🛠️ Habilidades</h3>
+                        <p className="perfil-parrafo">
+                            {perfil.habilidades || 'Todavía no agregó habilidades a su perfil.'}
+                        </p>
+                    </div>
+
+                    {areaInteresValor !== null && (
+                        <div className="info-section-custom full-width">
+                            <h3 className="section-title-custom">💡 Área de interés</h3>
+                            <p className="perfil-parrafo">
+                                {areaInteresValor || 'Todavía no agregó su área de interés.'}
+                            </p>
+                        </div>
+                    )}
+
+                    {logrosLabel && (
+                        <div className="info-section-custom full-width">
+                            <h3 className="section-title-custom">🏆 {logrosLabel}</h3>
+                            <p className="perfil-parrafo">
+                                {logrosValor || 'Todavía no agregó logros a su perfil.'}
+                            </p>
+                        </div>
+                    )}
+
+                    {competenciasValor !== null && (
+                        <div className="info-section-custom full-width">
+                            <h3 className="section-title-custom">📈 Competencias</h3>
+                            <p className="perfil-parrafo">
+                                {competenciasValor || 'Todavía no agregó competencias a su perfil.'}
+                            </p>
+                        </div>
+                    )}
+                </>
+            );
+        }
+
         return <p className="no-content-message">Selecciona una pestaña para ver el contenido.</p>;
     };
 
@@ -232,25 +299,23 @@ const Perfil = () => {
     // RENDERIZADO PRINCIPAL (AQUÍ PERFIL ES SEGURO)
     // --------------------------------------------------------
     
-    // 🌟 Mover la definición de avatarUrl aquí asegura que 'perfil' ya existe 🌟
-    const finalAvatarUrl =
-        tipo === 'estudiante'
-            ? perfil?.foto
-                ? buildMediaUrl(perfil.foto)
-                : '/avatar-default.png'
-            : '/avatar-default.png';
+    const finalAvatarUrl = perfil?.foto ? buildMediaUrl(perfil.foto) : '/avatar-default.png';
 
     return (
         <div className="perfil-container">
-            {/* ... (Fondo y Header) ... */}
-            
+            <AppHeader />
+
             {/* Main */}
             <div className="perfil-main-content">
+                <button onClick={handleVolver} className="volver-btn">
+                    <span className="btn-icon">←</span> Volver
+                </button>
+
                 {/* Encabezado: avatar + título + tabs */}
                 <div className="perfil-header-area">
                     {/* ... (perfil-avatar-wrap y avatar) ... */}
                     <div className="perfil-avatar-wrap">
-                        <img src={finalAvatarUrl} alt="Foto de perfil" className="perfil-avatar" />
+                        <img src={finalAvatarUrl} alt="Foto de perfil" className="perfil-avatar perfil-avatar--lg" />
                         {tipo === 'estudiante' && isOwner && (
                             <button
                                 className={`mini-btn ${isUploading ? 'disabled' : ''}`}
@@ -296,7 +361,7 @@ const Perfil = () => {
                 <div className="perfil-grid-layout">
                     {/* Columna 1: contenido (MANTENIDO) */}
                     <div className="perfil-content-wrapper">
-                        <div className="perfil-tab-content">{renderTabContent()}</div>
+                        <div className="perfil-tab-content" key={activeTab}>{renderTabContent()}</div>
                     </div>
 
                     {/* Columna 2: sidebar (LÓGICA CONDICIONAL) */}
@@ -309,22 +374,28 @@ const Perfil = () => {
             
             {/* 1. CONTACTAR (Solo si NO es el Propietario) */}
             {!isOwner && (
-                <button onClick={handleContactar} className="sidebar-btn contactar-btn">
-                    <span className="btn-icon">✉️</span> Contactar
-                </button>
+                <>
+                    <button
+                        onClick={handleContactar}
+                        className="sidebar-btn contactar-btn"
+                        disabled={contactando}
+                    >
+                        <span className="btn-icon">🤝</span>
+                        {contactando ? 'Enviando...' : 'Solicitar colaboración'}
+                    </button>
+                    {contactoMensaje && (
+                        <p className="contacto-mensaje">{contactoMensaje}</p>
+                    )}
+                </>
             )}
 
-            {/* 2. BOTONES PARA EL PROPIETARIO O ADMIN */}
-            {(isOwner || isAdmin) && (
+            {/* 2. BOTONES SOLO PARA EL PROPIETARIO */}
+            {isOwner && (
                 <>
-                    {/* Botón Editar (solo propietario) */}
-                    {isOwner && (
-                        <button onClick={handleEditar} className="sidebar-btn editar-btn">
-                            <span className="btn-icon">✏️</span> Editar Perfil
-                        </button>
-                    )}
+                    <button onClick={handleEditar} className="sidebar-btn editar-btn">
+                        <span className="btn-icon">✏️</span> Editar Perfil
+                    </button>
 
-                    {/* Botón Eliminar (propietario o admin) */}
                     <button onClick={handleEliminar} className="sidebar-btn eliminar-btn">
                         <span className="btn-icon">🗑️</span> Eliminar Perfil
                     </button>

@@ -1,47 +1,124 @@
 /* src/components/AppHeader.css */
-/* Header fijo con blur */
+
+/* =====================================================================
+   TOKENS DE DISEÑO — "Académico claro" + glassmorphism minimal.
+   Definidos aquí porque AppHeader se carga en TODAS las pantallas
+   (así están disponibles como variables CSS globales sin duplicarlas
+   en cada archivo). Los demás .css van adoptando estas variables poco
+   a poco conforme se les da su pasada de rediseño.
+   ===================================================================== */
+:root {
+  /* Fondo de página: gradiente casi imperceptible, nada de manchas de color */
+  --bg-page: linear-gradient(160deg, #F5F7FA 0%, #EEF1F6 45%, #F8F6F1 100%);
+
+  /* Vidrio (glassmorphism) */
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg-strong: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(30, 58, 95, 0.16);
+  --glass-blur: blur(20px);
+  --glass-shadow: 0 4px 20px rgba(30, 58, 95, 0.12);
+  --glass-shadow-hover: 0 10px 32px rgba(30, 58, 95, 0.18);
+
+  /* Color primario (marca) y secundario (CTA) */
+  --color-navy: #1E3A5F;
+  --color-navy-light: #2E547F;
+  --color-gold: #C08A3E;
+  --color-gold-dark: #A06F2C;
+
+  /* Texto */
+  --text-primary: #142035;
+  --text-secondary: #47526B;
+  --text-muted: #7C879B;
+
+  /* Tipos de perfil (mismo rol que antes, tonos más serios) */
+  --color-estudiante: #1E3A5F;
+  --color-docente: #B8562F;
+  --color-egresado: #1D9E75;
+
+  /* Estados */
+  --color-success: #1D9E75;
+  --color-success-bg: rgba(29, 158, 117, 0.1);
+  --color-danger: #C4453F;
+  --color-danger-bg: rgba(196, 69, 63, 0.08);
+  --color-warning: #C08A3E;
+  --color-warning-bg: rgba(192, 138, 62, 0.1);
+
+  --radius-card: 16px;
+  --radius-control: 10px;
+}
+
+/* Header fijo, vidrio claro */
 .premium-header{
   position: fixed; top: 0; left: 0; right: 0;
-  background: rgba(15,15,15,0.9);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  background: var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: 0 1px 20px rgba(30, 58, 95, 0.08);
   z-index: 1000; padding: 12px 0; width: 100%;
 }
+.premium-header::after{
+  content: '';
+  position: absolute; bottom: -3px; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--color-navy), var(--color-gold));
+}
 .header-content{
-  max-width: 1400px; margin: 0 auto; padding: 0 4px;
+  max-width: 1400px; margin: 0 auto; padding: 0 24px;
   display: flex; justify-content: space-between; align-items: center;
 }
-.logo-section{ display: flex; align-items: center; gap: 20px; }
+.logo-section{ display: flex; align-items: center; gap: 14px; }
 .logo-link{ display: inline-flex; align-items: center; }
-.site-logo{ width: 40px; height: 40px; object-fit: contain; }
+.site-logo{ width: 36px; height: 36px; object-fit: contain; }
 .site-title{
-  background: linear-gradient(135deg,#ffffff,#a8b2d1);
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent; margin: 0;
-  font-size: 2rem; font-weight: 700;
+  color: var(--color-navy);
+  margin: 0;
+  font-size: 1.5rem; font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 /* Botones del header */
-.nav-actions{ display: flex; gap: 10px; }
+.nav-actions{ display: flex; gap: 8px; flex-wrap: wrap; }
 .nav-btn{
+  position: relative;
   display: inline-flex; align-items: center; gap: 8px;
-  padding: 8px 16px; border-radius: 8px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: #fff; cursor: pointer; transition: all .2s ease; font-weight: 600;
+  padding: 8px 14px; border-radius: var(--radius-control);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary); cursor: pointer; transition: all .15s ease;
+  font-weight: 500;
+  text-decoration: none; font-size: 0.88rem;
 }
 .nav-btn:hover{
-  background: rgba(255,255,255,0.1);
-  border-color: rgba(255,255,255,0.2);
+  background: rgba(30, 58, 95, 0.06);
+  color: var(--color-navy);
+}
+
+/* Página actual: resaltada para que siempre sepas dónde estás */
+.nav-btn.active{
+  background: rgba(30, 58, 95, 0.08);
+  color: var(--color-navy);
+  font-weight: 600;
+}
+
+/* Badge numérico (mensajes sin leer, solicitudes pendientes) */
+.nav-badge{
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; background: var(--color-gold); color: #fff;
+  font-size: 0.68rem; font-weight: 700; line-height: 1;
 }
 
 /* Variante visual para cerrar sesión */
 .logout-nav-btn{
-  background: rgba(255,165,0,0.1);
-  border-color: rgba(255,165,0,0.3);
-  color: #ffaa00;
+  color: var(--text-muted);
 }
 .logout-nav-btn:hover{
-  background: rgba(255,165,0,0.2);
-  border-color: #ffaa00;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+@media (max-width: 900px) {
+  .site-title { display: none; }
+  .nav-btn span:not(.btn-icon):not(.nav-badge) { display: none; }
+  .nav-btn { padding: 10px; }
 }
