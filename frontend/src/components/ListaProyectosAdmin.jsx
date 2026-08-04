@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { adminService } from '../services/api';
 import './Listas.css';
 
-const ListaEstudiantes = ({ onUnauthorized }) => {
-    const [estudiantes, setEstudiantes] = useState([]);
+const ListaProyectosAdmin = ({ onUnauthorized }) => {
+    const [proyectos, setProyectos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [busqueda, setBusqueda] = useState('');
 
     useEffect(() => {
-        cargarEstudiantes();
+        cargarProyectos();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -21,14 +21,14 @@ const ListaEstudiantes = ({ onUnauthorized }) => {
         setError(prefijo + err.message);
     };
 
-    const cargarEstudiantes = async () => {
+    const cargarProyectos = async () => {
         try {
             setLoading(true);
             setError('');
-            const data = await adminService.getEstudiantes();
-            setEstudiantes(data);
+            const data = await adminService.getProyectos();
+            setProyectos(data);
         } catch (err) {
-            manejarError(err, 'Error al cargar estudiantes: ');
+            manejarError(err, 'Error al cargar proyectos: ');
         } finally {
             setLoading(false);
         }
@@ -38,8 +38,8 @@ const ListaEstudiantes = ({ onUnauthorized }) => {
         try {
             setLoading(true);
             setError('');
-            const data = await adminService.getEstudiantes(busqueda.trim());
-            setEstudiantes(data);
+            const data = await adminService.getProyectos(busqueda.trim());
+            setProyectos(data);
         } catch (err) {
             manejarError(err, 'Error en búsqueda: ');
         } finally {
@@ -47,11 +47,11 @@ const ListaEstudiantes = ({ onUnauthorized }) => {
         }
     };
 
-    const handleEliminar = async (id, nombre) => {
-        if (window.confirm(`¿Estás seguro de eliminar a ${nombre}? Esta acción no se puede deshacer.`)) {
+    const handleEliminar = async (id, titulo) => {
+        if (window.confirm(`¿Estás seguro de eliminar el proyecto "${titulo}"? Esta acción no se puede deshacer.`)) {
             try {
-                await adminService.deleteEstudiante(id);
-                cargarEstudiantes();
+                await adminService.deleteProyecto(id);
+                cargarProyectos();
             } catch (err) {
                 if (err.status === 401) {
                     onUnauthorized && onUnauthorized();
@@ -62,14 +62,10 @@ const ListaEstudiantes = ({ onUnauthorized }) => {
         }
     };
 
-    const handleVerPerfil = (id) => {
-        window.open(`/perfil_vista/estudiante/${id}`, '_blank');
-    };
-
     if (loading) {
         return (
             <div className="lista-container">
-                <div className="loading">Cargando estudiantes...</div>
+                <div className="loading">Cargando proyectos...</div>
             </div>
         );
     }
@@ -77,8 +73,8 @@ const ListaEstudiantes = ({ onUnauthorized }) => {
     return (
         <div className="lista-container">
             <div className="lista-header">
-                <h2>👨‍🎓 Lista de Estudiantes</h2>
-                <div className="contador">Total: {estudiantes.length}</div>
+                <h2>📁 Lista de Proyectos</h2>
+                <div className="contador">Total: {proyectos.length}</div>
             </div>
 
             {error && (
@@ -88,7 +84,7 @@ const ListaEstudiantes = ({ onUnauthorized }) => {
             <div className="busqueda-container">
                 <input
                     type="text"
-                    placeholder="Buscar estudiantes por nombre, correo, carrera..."
+                    placeholder="Buscar proyectos por título o descripción..."
                     value={busqueda}
                     onChange={(e) => setBusqueda(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleBuscar()}
@@ -97,50 +93,45 @@ const ListaEstudiantes = ({ onUnauthorized }) => {
                 <button onClick={handleBuscar} className="busqueda-btn">
                     🔍 Buscar
                 </button>
-                <button onClick={() => { setBusqueda(''); cargarEstudiantes(); }} className="recargar-btn">
+                <button onClick={() => { setBusqueda(''); cargarProyectos(); }} className="recargar-btn">
                     🔄 Recargar
                 </button>
             </div>
 
-            {estudiantes.length === 0 ? (
+            {proyectos.length === 0 ? (
                 <div className="sin-registros">
-                    No se encontraron estudiantes registrados
+                    No se encontraron proyectos registrados
                 </div>
             ) : (
                 <div className="tabla-container">
-                    <table className="tabla-estudiantes">
+                    <table className="tabla-proyectos">
                         <thead>
                             <tr>
                                 <th>ID</th>
-                                <th>Nombre Completo</th>
-                                <th>Correo</th>
+                                <th>Título</th>
+                                <th>Tipo</th>
                                 <th>Carrera</th>
-                                <th>Semestre</th>
-                                <th>Fecha Registro</th>
+                                <th>Estado</th>
+                                <th>Creador</th>
+                                <th>Fecha</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {estudiantes.map((estudiante) => (
-                                <tr key={estudiante.id}>
-                                    <td>{estudiante.id}</td>
-                                    <td className="nombre-cell">{estudiante.nombre_completo}</td>
-                                    <td>{estudiante.correo_institucional}</td>
-                                    <td>{estudiante.carrera_actual}</td>
-                                    <td>{estudiante.semestre}</td>
-                                    <td>{estudiante.fecha_registro ? new Date(estudiante.fecha_registro).toLocaleDateString() : '—'}</td>
+                            {proyectos.map((proyecto) => (
+                                <tr key={proyecto.id}>
+                                    <td>{proyecto.id}</td>
+                                    <td className="nombre-cell">{proyecto.titulo}</td>
+                                    <td>{proyecto.tipo}</td>
+                                    <td>{proyecto.carrera}</td>
+                                    <td>{proyecto.estado}</td>
+                                    <td>{proyecto.creador_nombre || `${proyecto.creador_tipo || ''} #${proyecto.creador_id ?? ''}`}</td>
+                                    <td>{proyecto.creado_en ? new Date(proyecto.creado_en).toLocaleDateString() : '—'}</td>
                                     <td className="acciones-cell">
                                         <button
-                                            onClick={() => handleVerPerfil(estudiante.id)}
-                                            className="btn-perfil"
-                                            title="Ver perfil completo"
-                                        >
-                                            👁️ Ver
-                                        </button>
-                                        <button
-                                            onClick={() => handleEliminar(estudiante.id, estudiante.nombre_completo)}
+                                            onClick={() => handleEliminar(proyecto.id, proyecto.titulo)}
                                             className="btn-eliminar"
-                                            title="Eliminar estudiante"
+                                            title="Eliminar proyecto"
                                         >
                                             🗑️ Eliminar
                                         </button>
@@ -155,4 +146,4 @@ const ListaEstudiantes = ({ onUnauthorized }) => {
     );
 };
 
-export default ListaEstudiantes;
+export default ListaProyectosAdmin;

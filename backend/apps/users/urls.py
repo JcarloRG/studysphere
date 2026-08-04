@@ -2,8 +2,25 @@
 
 from django.urls import path
 from . import views
+from . import admin_views
 
 urlpatterns = [
+    # ===================== PANEL DE ADMINISTRACIÓN =====================
+    path('api/admin/login/', admin_views.admin_login),
+    path('api/admin/me/', admin_views.admin_me),
+    path('api/admin/stats/', admin_views.admin_stats),
+
+    path('api/admin/estudiantes/', admin_views.admin_estudiantes),
+    path('api/admin/docentes/', admin_views.admin_docentes),
+    path('api/admin/egresados/', admin_views.admin_egresados),
+
+    path('api/admin/estudiante/<int:id>/delete/', admin_views.admin_eliminar_estudiante),
+    path('api/admin/docente/<int:id>/delete/', admin_views.admin_eliminar_docente),
+    path('api/admin/egresado/<int:id>/delete/', admin_views.admin_eliminar_egresado),
+
+    path('api/admin/proyectos/', admin_views.admin_proyectos),
+    path('api/admin/proyecto/<int:id>/delete/', admin_views.admin_eliminar_proyecto),
+
     path('api/health/', views.health),
 
     # listados

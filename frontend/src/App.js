@@ -64,9 +64,8 @@ function App() {
           <Route path="/mensajes" element={<Mensajes />} />
           <Route path="/mensajes/:matchId" element={<ChatConversacion />} />
 
-          {/* Si en algún momento quieres admin panel:
-          <Route path="/admin" element={<AdminPanel />} /> 
-          */}
+          {/* Panel de administración (tiene su propio login interno) */}
+          <Route path="/admin" element={<AdminPanel />} />
         </Routes>
       </div>
     </Router>

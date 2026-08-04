@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { apiService } from '../services/api';
+import { adminService } from '../services/api';
 import './Listas.css';
 
-const ListaDocentes = () => {
+const ListaDocentes = ({ onUnauthorized }) => {
     const [docentes, setDocentes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -10,51 +10,60 @@ const ListaDocentes = () => {
 
     useEffect(() => {
         cargarDocentes();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    const manejarError = (err, prefijo) => {
+        if (err.status === 401) {
+            onUnauthorized && onUnauthorized();
+            return;
+        }
+        setError(prefijo + err.message);
+    };
 
     const cargarDocentes = async () => {
         try {
             setLoading(true);
-            const result = await apiService.getDocentes();
-            setDocentes(result.docentes || []);
+            setError('');
+            const data = await adminService.getDocentes();
+            setDocentes(data);
         } catch (err) {
-            setError('Error al cargar docentes: ' + err.message);
+            manejarError(err, 'Error al cargar docentes: ');
         } finally {
             setLoading(false);
         }
     };
 
     const handleBuscar = async () => {
-        if (!busqueda.trim()) {
-            cargarDocentes();
-            return;
-        }
-
         try {
             setLoading(true);
-            const result = await apiService.buscarDocentes(busqueda);
-            setDocentes(result.docentes || []);
+            setError('');
+            const data = await adminService.getDocentes(busqueda.trim());
+            setDocentes(data);
         } catch (err) {
-            setError('Error en búsqueda: ' + err.message);
+            manejarError(err, 'Error en búsqueda: ');
         } finally {
             setLoading(false);
         }
     };
 
     const handleEliminar = async (id, nombre) => {
-        if (window.confirm(`¿Estás seguro de eliminar a ${nombre}?`)) {
+        if (window.confirm(`¿Estás seguro de eliminar a ${nombre}? Esta acción no se puede deshacer.`)) {
             try {
-                await apiService.deleteDocente(id);
-                alert('Docente eliminado exitosamente');
+                await adminService.deleteDocente(id);
                 cargarDocentes();
             } catch (err) {
+                if (err.status === 401) {
+                    onUnauthorized && onUnauthorized();
+                    return;
+                }
                 alert('Error al eliminar: ' + err.message);
             }
         }
     };
 
     const handleVerPerfil = (id) => {
-        window.open(`/perfil/docente/${id}`, '_blank');
+        window.open(`/perfil_vista/docente/${id}`, '_blank');
     };
 
     if (loading) {
@@ -79,7 +88,7 @@ const ListaDocentes = () => {
             <div className="busqueda-container">
                 <input
                     type="text"
-                    placeholder="Buscar docentes por nombre, carrera, etc..."
+                    placeholder="Buscar docentes por nombre, correo, carrera..."
                     value={busqueda}
                     onChange={(e) => setBusqueda(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleBuscar()}
@@ -88,7 +97,7 @@ const ListaDocentes = () => {
                 <button onClick={handleBuscar} className="busqueda-btn">
                     🔍 Buscar
                 </button>
-                <button onClick={cargarDocentes} className="recargar-btn">
+                <button onClick={() => { setBusqueda(''); cargarDocentes(); }} className="recargar-btn">
                     🔄 Recargar
                 </button>
             </div>
@@ -121,15 +130,15 @@ const ListaDocentes = () => {
                                     <td>{docente.carrera_egreso}</td>
                                     <td>{docente.carreras_imparte}</td>
                                     <td>{docente.grado_academico}</td>
-                                    <td>{new Date(docente.fecha_registro).toLocaleDateString()}</td>
+                                    <td>{docente.fecha_registro ? new Date(docente.fecha_registro).toLocaleDateString() : '—'}</td>
                                     <td className="acciones-cell">
-                                        <button 
+                                        <button
                                             onClick={() => handleVerPerfil(docente.id)}
                                             className="btn-perfil"
                                         >
                                             👁️ Ver
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => handleEliminar(docente.id, docente.nombre_completo)}
                                             className="btn-eliminar"
                                         >

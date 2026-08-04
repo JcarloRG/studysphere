@@ -1401,3 +1401,174 @@ export const apiService = {
     return { success: true, message: res.message, status: res.status };
   },
 };
+
+/* ===========================================================
+ * PANEL DE ADMINISTRACIÓN
+ * ===========================================================
+ * Cliente aparte de apiService: el panel se autentica con su propio
+ * token de administrador (cabecera X-Admin-Token), nada que ver con el
+ * login de estudiantes/docentes/egresados. El token vive en
+ * localStorage bajo ADMIN_TOKEN_KEY.
+ */
+
+const ADMIN_TOKEN_KEY = "adminToken";
+const ADMIN_INFO_KEY = "adminInfo";
+
+async function adminRequest(method, path, body = null, timeoutMs = 20000) {
+  const token = localStorage.getItem(ADMIN_TOKEN_KEY);
+  const url = joinURL(API_BASE_URL, ensureTrailingSlash(path));
+
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+
+  const headers = { Accept: "application/json" };
+  if (token) headers["X-Admin-Token"] = token;
+
+  const init = {
+    method: method.toUpperCase(),
+    headers,
+    credentials: "omit",
+    signal: controller.signal,
+  };
+  if (body) {
+    headers["Content-Type"] = "application/json";
+    init.body = JSON.stringify(body);
+  }
+
+  let response, parsed;
+  try {
+    response = await fetch(url, init);
+    parsed = await parseResponse(response);
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("La solicitud tardó demasiado y fue cancelada.");
+    }
+    if (err.name === "TypeError" && String(err.message).includes("fetch")) {
+      throw new Error(
+        "No se puede conectar al servidor. Verifica que Django esté ejecutándose en " +
+          API_BASE_URL
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(id);
+  }
+
+  if (response.status === 401) {
+    // El token no existe, es inválido o expiró: se limpia la sesión local
+    // para que la UI vuelva a mostrar el login.
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
+    localStorage.removeItem(ADMIN_INFO_KEY);
+  }
+
+  if (!response.ok) {
+    const msg =
+      parsed?.data?.message ||
+      (parsed?.raw && parsed.raw.trim().startsWith("<")
+        ? "El servidor devolvió HTML (posible error 500). Revisa consola/servidor."
+        : "Error en la solicitud");
+    throw httpError(msg, { status: response.status, url, raw: parsed?.raw });
+  }
+
+  const payload = parsed?.data;
+  return {
+    success: true,
+    status: response.status,
+    data: payload?.data !== undefined ? payload.data : payload,
+    message: payload?.message,
+  };
+}
+
+export const adminService = {
+  getToken() {
+    return localStorage.getItem(ADMIN_TOKEN_KEY);
+  },
+
+  getAdminInfo() {
+    try {
+      const raw = localStorage.getItem(ADMIN_INFO_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  isAuthenticated() {
+    return !!localStorage.getItem(ADMIN_TOKEN_KEY);
+  },
+
+  async login(username, password) {
+    const res = await adminRequest("POST", "/api/admin/login/", {
+      username,
+      password,
+    });
+    const { token, admin } = res.data || {};
+    if (!token) {
+      throw new Error("El servidor no devolvió un token de sesión válido.");
+    }
+    localStorage.setItem(ADMIN_TOKEN_KEY, token);
+    localStorage.setItem(ADMIN_INFO_KEY, JSON.stringify(admin || {}));
+    return { success: true, admin, message: res.message };
+  },
+
+  logout() {
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
+    localStorage.removeItem(ADMIN_INFO_KEY);
+  },
+
+  async verificarSesion() {
+    // Confirma con el backend que el token guardado sigue siendo válido
+    // (por ejemplo tras refrescar la página).
+    const res = await adminRequest("GET", "/api/admin/me/");
+    return res.data;
+  },
+
+  async getStats() {
+    const res = await adminRequest("GET", "/api/admin/stats/");
+    return res.data;
+  },
+
+  async getEstudiantes(q = "") {
+    const query = q ? `?q=${encodeURIComponent(q)}` : "";
+    const res = await adminRequest("GET", `/api/admin/estudiantes/${query}`);
+    return Array.isArray(res.data) ? res.data : [];
+  },
+
+  async getDocentes(q = "") {
+    const query = q ? `?q=${encodeURIComponent(q)}` : "";
+    const res = await adminRequest("GET", `/api/admin/docentes/${query}`);
+    return Array.isArray(res.data) ? res.data : [];
+  },
+
+  async getEgresados(q = "") {
+    const query = q ? `?q=${encodeURIComponent(q)}` : "";
+    const res = await adminRequest("GET", `/api/admin/egresados/${query}`);
+    return Array.isArray(res.data) ? res.data : [];
+  },
+
+  async deleteEstudiante(id) {
+    const res = await adminRequest("POST", `/api/admin/estudiante/${id}/delete/`);
+    return { success: true, message: res.message };
+  },
+
+  async deleteDocente(id) {
+    const res = await adminRequest("POST", `/api/admin/docente/${id}/delete/`);
+    return { success: true, message: res.message };
+  },
+
+  async deleteEgresado(id) {
+    const res = await adminRequest("POST", `/api/admin/egresado/${id}/delete/`);
+    return { success: true, message: res.message };
+  },
+
+  async getProyectos(q = "") {
+    const query = q ? `?q=${encodeURIComponent(q)}` : "";
+    const res = await adminRequest("GET", `/api/admin/proyectos/${query}`);
+    return Array.isArray(res.data) ? res.data : [];
+  },
+
+  async deleteProyecto(id) {
+    const res = await adminRequest("POST", `/api/admin/proyecto/${id}/delete/`);
+    return { success: true, message: res.message };
+  },
+};

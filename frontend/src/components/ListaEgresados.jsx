@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { apiService } from '../services/api';
+import { adminService } from '../services/api';
 import './Listas.css';
 
-const ListaEgresados = () => {
+const ListaEgresados = ({ onUnauthorized }) => {
     const [egresados, setEgresados] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -10,51 +10,60 @@ const ListaEgresados = () => {
 
     useEffect(() => {
         cargarEgresados();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    const manejarError = (err, prefijo) => {
+        if (err.status === 401) {
+            onUnauthorized && onUnauthorized();
+            return;
+        }
+        setError(prefijo + err.message);
+    };
 
     const cargarEgresados = async () => {
         try {
             setLoading(true);
-            const result = await apiService.getEgresados();
-            setEgresados(result.egresados || []);
+            setError('');
+            const data = await adminService.getEgresados();
+            setEgresados(data);
         } catch (err) {
-            setError('Error al cargar egresados: ' + err.message);
+            manejarError(err, 'Error al cargar egresados: ');
         } finally {
             setLoading(false);
         }
     };
 
     const handleBuscar = async () => {
-        if (!busqueda.trim()) {
-            cargarEgresados();
-            return;
-        }
-
         try {
             setLoading(true);
-            const result = await apiService.buscarEgresados(busqueda);
-            setEgresados(result.egresados || []);
+            setError('');
+            const data = await adminService.getEgresados(busqueda.trim());
+            setEgresados(data);
         } catch (err) {
-            setError('Error en búsqueda: ' + err.message);
+            manejarError(err, 'Error en búsqueda: ');
         } finally {
             setLoading(false);
         }
     };
 
     const handleEliminar = async (id, nombre) => {
-        if (window.confirm(`¿Estás seguro de eliminar a ${nombre}?`)) {
+        if (window.confirm(`¿Estás seguro de eliminar a ${nombre}? Esta acción no se puede deshacer.`)) {
             try {
-                await apiService.deleteEgresado(id);
-                alert('Egresado eliminado exitosamente');
+                await adminService.deleteEgresado(id);
                 cargarEgresados();
             } catch (err) {
+                if (err.status === 401) {
+                    onUnauthorized && onUnauthorized();
+                    return;
+                }
                 alert('Error al eliminar: ' + err.message);
             }
         }
     };
 
     const handleVerPerfil = (id) => {
-        window.open(`/perfil/egresado/${id}`, '_blank');
+        window.open(`/perfil_vista/egresado/${id}`, '_blank');
     };
 
     if (loading) {
@@ -88,7 +97,7 @@ const ListaEgresados = () => {
                 <button onClick={handleBuscar} className="busqueda-btn">
                     🔍 Buscar
                 </button>
-                <button onClick={cargarEgresados} className="recargar-btn">
+                <button onClick={() => { setBusqueda(''); cargarEgresados(); }} className="recargar-btn">
                     🔄 Recargar
                 </button>
             </div>
@@ -123,15 +132,15 @@ const ListaEgresados = () => {
                                     <td>{egresado.anio_egreso}</td>
                                     <td>{egresado.empresa}</td>
                                     <td>{egresado.puesto}</td>
-                                    <td>{new Date(egresado.fecha_registro).toLocaleDateString()}</td>
+                                    <td>{egresado.fecha_registro ? new Date(egresado.fecha_registro).toLocaleDateString() : '—'}</td>
                                     <td className="acciones-cell">
-                                        <button 
+                                        <button
                                             onClick={() => handleVerPerfil(egresado.id)}
                                             className="btn-perfil"
                                         >
                                             👁️ Ver
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => handleEliminar(egresado.id, egresado.nombre_completo)}
                                             className="btn-eliminar"
                                         >

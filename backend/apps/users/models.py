@@ -67,6 +67,31 @@ class Egresado(models.Model):
 
 
 
+class AdminUser(models.Model):
+    """
+    Cuenta de administrador del panel (/admin en el frontend).
+
+    Está separada por completo de Estudiante/Docente/Egresado: un admin no
+    es un perfil de la red social, es quien la gestiona. Por eso vive en su
+    propia tabla y usa el hasher fuerte de Django (PBKDF2, con sal) para la
+    contraseña, en vez del sha256 sin sal que usan los otros perfiles — al
+    ser una tabla nueva no hay contraseñas viejas con las que mantener
+    compatibilidad, así que no hay razón para no usar algo más seguro.
+    """
+    username = models.CharField(max_length=80, unique=True)
+    password_hash = models.CharField(max_length=255)
+    nombre = models.CharField(max_length=120, blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_login = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'admin_users'
+
+    def __str__(self):
+        return self.username
+
+
 class EmailVerification(models.Model):
     PURPOSE_CHOICES = [
         ('signup', 'Registro'),

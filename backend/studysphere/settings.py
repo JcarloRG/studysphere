@@ -131,6 +131,7 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
     'x-user-id',
     'x-user-tipo',
+    'x-admin-token',
 ]
 
 CSRF_TRUSTED_ORIGINS = [
