@@ -35,6 +35,7 @@ urlpatterns = [
 
     # login
     path('api/login/', views.login_user),
+    path('api/token/refresh/', views.token_refresh),
 
     # registro
     path('api/estudiante/registrar/', views.registrar_estudiante),

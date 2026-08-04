@@ -199,20 +199,82 @@ async function requestMultipart(method, path, formData, timeoutMs = 20000) {
   };
 }
 
+/* ===================== Sesión (JWT) ===================== */
+/**
+ * accessToken/refreshToken: los emite el backend en /api/login/ y se usan
+ * para probar quién eres en cada petición (Authorization: Bearer <token>).
+ * Antes esto se hacía mandando X-User-Id/X-User-Tipo tal cual, que
+ * cualquiera podía falsificar con solo cambiar dos cabeceras — el backend
+ * ahora exige un JWT firmado que no se puede fabricar sin la clave del
+ * servidor.
+ *
+ * currentUserId/currentUserType se conservan por separado: siguen usándose
+ * en la UI (ej. "¿es mi propio perfil?", resaltar el menú) pero YA NO son
+ * la fuente de verdad para la autorización — eso lo decide el backend a
+ * partir del token.
+ */
+const ACCESS_TOKEN_KEY = "accessToken";
+const REFRESH_TOKEN_KEY = "refreshToken";
+
+function getAccessToken() {
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+function getRefreshToken() {
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+function setSessionTokens({ access, refresh }) {
+  if (access) localStorage.setItem(ACCESS_TOKEN_KEY, access);
+  if (refresh) localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
+}
+
+function clearSessionTokens() {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+/** Pide un access token nuevo con el refresh token guardado. */
+async function tryRefreshAccessToken() {
+  const refresh = getRefreshToken();
+  if (!refresh) return false;
+
+  try {
+    const url = joinURL(API_BASE_URL, "/api/token/refresh/");
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ refresh }),
+      credentials: "omit",
+    });
+    if (!response.ok) return false;
+    const parsed = await parseResponse(response);
+    const access = parsed?.data?.data?.access;
+    if (!access) return false;
+    setSessionTokens({ access });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Request JSON que ENVÍA quién es el usuario logueado (para /api/matches/…)
+ * usando el access token JWT. Si el token ya expiró (401), intenta
+ * refrescarlo una vez con el refresh token y reintenta la petición antes
+ * de rendirse.
  */
 async function requestJSONWithUser(
   method,
   path,
   body = null,
-  timeoutMs = 20000
+  timeoutMs = 20000,
+  _isRetry = false
 ) {
-  const currentUserId = localStorage.getItem("currentUserId");
-  const currentUserType = localStorage.getItem("currentUserType");
+  const accessToken = getAccessToken();
 
-  if (!currentUserId || !currentUserType) {
-    throw new Error("No hay información del usuario logueado en el navegador.");
+  if (!accessToken) {
+    throw new Error("No hay una sesión activa. Inicia sesión de nuevo.");
   }
 
   // Separamos el query string ANTES de normalizar la barra final: si no lo
@@ -231,8 +293,7 @@ async function requestJSONWithUser(
 
   const headers = {
     Accept: "application/json",
-    "X-User-Id": currentUserId,
-    "X-User-Tipo": currentUserType,
+    Authorization: `Bearer ${accessToken}`,
   };
 
   const init = {
@@ -268,6 +329,17 @@ async function requestJSONWithUser(
     throw err;
   } finally {
     clearTimeout(id);
+  }
+
+  // Access token expirado: intentamos refrescar UNA vez y reintentar la
+  // misma petición antes de rendirnos y mandar al usuario a loguearse de
+  // nuevo.
+  if (response.status === 401 && !_isRetry) {
+    const refreshed = await tryRefreshAccessToken();
+    if (refreshed) {
+      return requestJSONWithUser(method, path, body, timeoutMs, true);
+    }
+    clearSessionTokens();
   }
 
   if (!response.ok) {
@@ -367,9 +439,17 @@ export const apiService = {
     console.log("📡 Respuesta loginUser:", res);
 
     if (res.success && res.data) {
-      // aquí normalmente guardarías en localStorage el id/tipo
+      // currentUserId/currentUserType: solo para la UI (ej. "es mi perfil").
       localStorage.setItem("currentUserId", res.data.perfil_id);
       localStorage.setItem("currentUserType", res.data.tipo);
+
+      // access/refresh: lo que realmente prueba la identidad ante el
+      // backend en cada petición (ver requestJSONWithUser).
+      if (res.data.access && res.data.refresh) {
+        setSessionTokens({ access: res.data.access, refresh: res.data.refresh });
+      } else {
+        console.warn("⚠️ El backend no devolvió tokens de sesión en el login.");
+      }
 
       return {
         success: true,
@@ -381,6 +461,13 @@ export const apiService = {
     }
 
     throw new Error(res.message || "Respuesta de login inesperada.");
+  },
+
+  /** Cierra la sesión del usuario actual (estudiante/docente/egresado). */
+  logoutUser() {
+    clearSessionTokens();
+    localStorage.removeItem("currentUserId");
+    localStorage.removeItem("currentUserType");
   },
 
   /* ---------- CREATE ---------- */

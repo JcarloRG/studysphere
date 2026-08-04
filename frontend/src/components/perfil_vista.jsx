@@ -76,11 +76,10 @@ const Perfil = () => {
 
     // 🌟 NUEVA FUNCIÓN: Cerrar Sesión 🌟
     const handleLogout = () => {
-        // 1. Eliminar las credenciales de autenticación del navegador
-        localStorage.removeItem('currentUserId');
-        localStorage.removeItem('currentUserType');
-        // Opcional: limpiar otros tokens de sesión si existen
-        
+        // Elimina currentUserId/currentUserType (UI) y accessToken/refreshToken
+        // (lo que realmente autentica ante el backend).
+        apiService.logoutUser();
+
         // 2. Redirigir al usuario a la página de inicio
         navigate('/');
     };

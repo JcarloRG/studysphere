@@ -17,7 +17,13 @@ import hashlib
 import psycopg2
 import psycopg2.extras
 
+from django.contrib.auth.hashers import make_password, check_password as django_check_password
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework_simplejwt.exceptions import TokenError
+
 from . import matching
+from .auth import emitir_tokens, refrescar_access_token, usuario_desde_request
 
 
 # ===================== ELIMINAR PERFILES (DJANGO ORM) =====================
@@ -170,6 +176,34 @@ def health(request):
     return json_ok({'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')}, "OK")
 
 
+@csrf_exempt
+def token_refresh(request):
+    """
+    POST { refresh: <refresh_token> } -> { access: <access_token> }
+
+    Permite que el frontend consiga un access token nuevo sin pedirle la
+    contraseña de nuevo, mientras el refresh token siga vigente. Ver
+    apps/users/auth.py.
+    """
+    opt = allow_options(request)
+    if opt:
+        return opt
+    if request.method != 'POST':
+        return json_err('Método no permitido. Usa POST.', 405)
+
+    try:
+        data = json.loads(request.body or "{}")
+        refresh_str = data.get('refresh')
+        if not refresh_str:
+            return json_err('Falta el refresh token.', 400)
+        access = refrescar_access_token(refresh_str)
+        return json_ok({'access': access}, 'Token renovado.')
+    except TokenError:
+        return json_err('Refresh token inválido o expirado. Inicia sesión de nuevo.', 401)
+    except (ValueError, TypeError):
+        return json_err('Cuerpo de la solicitud inválido.', 400)
+
+
 # ===================== Helpers =====================
 
 def db_conn():
@@ -192,21 +226,64 @@ def db_conn():
     )
 
 
-def _hash_password(password):
+def _hash_password_legado(password):
     """
-    Hash SHA-256 en Python (hex) para password_hash.
-
-    Antes esto lo hacía la base de datos con SHA2(%s, 256), función que
-    existe en MySQL pero no en Postgres. Calcularlo aquí además tiene la
-    ventaja de que ya no depende del motor de base de datos.
-
-    Nota: SHA-256 sin sal es más débil que algo como PBKDF2/bcrypt (lo que
-    usa Django con make_password/check_password). Se deja igual que antes
-    para no invalidar las contraseñas ya guardadas de tus usuarios actuales;
-    si quieres pasarte a hashing con sal, es un cambio aparte (hay que
-    re-hashear o forzar reset de contraseña).
+    SHA-256 sin sal (hex): el hasher que usaba el proyecto originalmente.
+    Se conserva SOLO para poder verificar contraseñas de cuentas que se
+    registraron antes de este cambio; ya no se usa para crear cuentas
+    nuevas (ver _hash_password_nuevo / registrar_*).
     """
     return hashlib.sha256((password or '').encode('utf-8')).hexdigest()
+
+
+def _hash_password_nuevo(password):
+    """
+    Hasher fuerte de Django (PBKDF2 + sal aleatoria + miles de iteraciones)
+    para cuentas nuevas y para las que se migran al vuelo en el login.
+    """
+    return make_password(password)
+
+
+def _validar_fortaleza_password(password):
+    """
+    Corre los AUTH_PASSWORD_VALIDATORS de settings.py (longitud mínima,
+    contraseñas comunes, etc.). Devuelve None si es válida, o un mensaje
+    de error legible si no.
+    """
+    try:
+        validate_password(password)
+    except DjangoValidationError as e:
+        return ' '.join(e.messages)
+    return None
+
+
+def _verificar_y_migrar_password(conn, tabla, perfil_id, password_plano, hash_guardado):
+    """
+    True si `password_plano` coincide con `hash_guardado`.
+
+    Acepta tanto el hash fuerte de Django (prefijo pbkdf2_sha256$/argon2$/
+    bcrypt$) como el SHA-256 sin sal que usaban las cuentas creadas antes
+    de este cambio. Si la cuenta todavía tiene el hash viejo y la
+    contraseña resulta correcta, se re-hashea aquí mismo con el hasher
+    fuerte y se actualiza en la base de datos — así las cuentas existentes
+    quedan migradas a un hashing seguro la primera vez que su dueño inicia
+    sesión, sin que tengan que hacer nada ni se les fuerce un reset.
+    """
+    if not hash_guardado:
+        return False
+
+    if hash_guardado.startswith(('pbkdf2_', 'argon2', 'bcrypt')):
+        return django_check_password(password_plano, hash_guardado)
+
+    # Formato legado: sha256 hex sin sal.
+    if hash_guardado == _hash_password_legado(password_plano):
+        nuevo_hash = _hash_password_nuevo(password_plano)
+        cur = conn.cursor()
+        cur.execute(f"UPDATE {tabla} SET password_hash=%s WHERE id=%s", (nuevo_hash, perfil_id))
+        conn.commit()
+        cur.close()
+        return True
+    return False
 
 
 def json_ok(data=None, message=None, status=200):
@@ -351,39 +428,51 @@ def login_user(request):
             'egresados': 'egresado'
         }
 
+        # Buscamos la cuenta por correo primero (sin condicionar por el
+        # hash en el SQL): así podemos verificar la contraseña en Python
+        # con _verificar_y_migrar_password, que sabe leer tanto el hash
+        # nuevo (Django) como el viejo (sha256 legado) y migra este último
+        # automáticamente si resulta correcto.
         for tabla, tipo in tablas.items():
             sql = f"""
             SELECT id,
                    CONCAT_WS(' ', nombre, apellido_paterno, NULLIF(apellido_materno, '')) AS nombre_completo,
                    nombre, apellido_paterno, apellido_materno,
-                   correo_institucional, email_verified, foto
+                   correo_institucional, email_verified, foto, password_hash
             FROM {tabla}
-            WHERE LOWER(correo_institucional)=%s AND password_hash=%s
+            WHERE LOWER(correo_institucional)=%s
             LIMIT 1
             """
-            cursor.execute(sql, (email, _hash_password(password)))
+            cursor.execute(sql, (email,))
             row = cursor.fetchone()
 
             if row:
-                user_info = {
-                    'perfil_id': row['id'],
-                    'nombre_completo': row['nombre_completo'],
-                    'nombre': row['nombre'],
-                    'apellido_paterno': row['apellido_paterno'],
-                    'apellido_materno': row['apellido_materno'],
-                    'correo_institucional': row['correo_institucional'],
-                    'tipo': tipo,
-                    'email_verified': bool(row['email_verified']),
-                    'foto': row['foto'] or '/static/images/default-avatar.png'
-                }
+                if _verificar_y_migrar_password(conn, tabla, row['id'], password, row['password_hash']):
+                    user_info = {
+                        'perfil_id': row['id'],
+                        'nombre_completo': row['nombre_completo'],
+                        'nombre': row['nombre'],
+                        'apellido_paterno': row['apellido_paterno'],
+                        'apellido_materno': row['apellido_materno'],
+                        'correo_institucional': row['correo_institucional'],
+                        'tipo': tipo,
+                        'email_verified': bool(row['email_verified']),
+                        'foto': row['foto'] or '/static/images/default-avatar.png'
+                    }
+                # El correo institucional identifica una única cuenta en
+                # todo el sistema, así que si ya la encontramos aquí no
+                # tiene sentido seguir buscando en las otras tablas
+                # (coincida o no la contraseña).
                 break
 
         cursor.close()
         conn.close()
 
         if user_info:
+            tokens = emitir_tokens(user_info['perfil_id'], user_info['tipo'], user_info['correo_institucional'])
+            respuesta = {**user_info, **tokens}
             print(f"✅ Usuario {email} ({user_info['tipo']}) inició sesión.")
-            return json_ok(user_info, 'Inicio de sesión exitoso.')
+            return json_ok(respuesta, 'Inicio de sesión exitoso.')
         else:
             print(f"❌ Intento fallido de login para {email}.")
             return json_err('Correo o contraseña incorrectos.', 401)
@@ -411,12 +500,16 @@ def registrar_estudiante(request):
 
     try:
         data, files = _parse_request_data(request)
-        print("📝 Datos estudiante recibidos:", data)
+        print("📝 Datos estudiante recibidos:", {k: v for k, v in data.items() if k != 'password'})
 
         campos = ['nombre', 'apellido_paterno', 'correo_institucional', 'carrera_actual', 'password']
         for c in campos:
             if not data.get(c):
                 return json_err(f'Campo obligatorio faltante: {c}', 400)
+
+        error_password = _validar_fortaleza_password(data['password'])
+        if error_password:
+            return json_err(error_password, 400)
 
         conn = db_conn()
         cursor = conn.cursor()
@@ -444,7 +537,7 @@ def registrar_estudiante(request):
             data['apellido_paterno'],
             data.get('apellido_materno') or None,
             data['correo_institucional'],
-            _hash_password(data['password']),
+            _hash_password_nuevo(data['password']),
             data['carrera_actual'],
             data.get('otra_carrera', 'No'),
             data.get('semestre', ''),
@@ -514,12 +607,16 @@ def registrar_docente(request):
 
     try:
         data, files = _parse_request_data(request)
-        print("📝 Datos docente recibidos:", data)
+        print("📝 Datos docente recibidos:", {k: v for k, v in data.items() if k != 'password'})
 
         campos = ['nombre', 'apellido_paterno', 'correo_institucional', 'carrera_egreso', 'password']
         for c in campos:
             if not data.get(c):
                 return json_err(f'Campo obligatorio faltante: {c}', 400)
+
+        error_password = _validar_fortaleza_password(data['password'])
+        if error_password:
+            return json_err(error_password, 400)
 
         conn = db_conn()
         cursor = conn.cursor()
@@ -547,7 +644,7 @@ def registrar_docente(request):
             data['apellido_paterno'],
             data.get('apellido_materno') or None,
             data['correo_institucional'],
-            _hash_password(data['password']),
+            _hash_password_nuevo(data['password']),
             data['carrera_egreso'],
             data.get('carreras_imparte', ''),
             data.get('grado_academico', ''),
@@ -617,12 +714,16 @@ def registrar_egresado(request):
 
     try:
         data, files = _parse_request_data(request)
-        print("📝 Datos egresado recibidos:", data)
+        print("📝 Datos egresado recibidos:", {k: v for k, v in data.items() if k != 'password'})
 
         campos = ['nombre', 'apellido_paterno', 'correo_institucional', 'carrera_egreso', 'anio_egreso', 'password']
         for c in campos:
             if not data.get(c):
                 return json_err(f'Campo obligatorio faltante: {c}', 400)
+
+        error_password = _validar_fortaleza_password(data['password'])
+        if error_password:
+            return json_err(error_password, 400)
 
         anio = int(data['anio_egreso'])
         if anio < 1900 or anio > 2100:
@@ -654,7 +755,7 @@ def registrar_egresado(request):
             data['apellido_paterno'],
             data.get('apellido_materno') or None,
             data['correo_institucional'],
-            _hash_password(data['password']),
+            _hash_password_nuevo(data['password']),
             data['carrera_egreso'],
             anio,
             data.get('ocupacion_actual', ''),
@@ -1069,6 +1170,9 @@ def actualizar_foto_estudiante(request, estudiante_id):
     if request.method != 'POST':
         return json_err('Método no permitido. Usa POST.', 405)
 
+    if not _verificar_propietario(request, estudiante_id, 'estudiante'):
+        return json_err('No tienes permiso para editar la foto de este perfil.', 403)
+
     try:
         if 'foto' not in request.FILES:
             return json_err('Archivo "foto" no enviado', 400)
@@ -1114,6 +1218,9 @@ def actualizar_foto_docente(request, docente_id):
     if request.method != 'POST':
         return json_err('Método no permitido. Usa POST.', 405)
 
+    if not _verificar_propietario(request, docente_id, 'docente'):
+        return json_err('No tienes permiso para editar la foto de este perfil.', 403)
+
     try:
         if 'foto' not in request.FILES:
             return json_err('Archivo "foto" no enviado', 400)
@@ -1158,6 +1265,9 @@ def actualizar_foto_egresado(request, egresado_id):
 
     if request.method != 'POST':
         return json_err('Método no permitido. Usa POST.', 405)
+
+    if not _verificar_propietario(request, egresado_id, 'egresado'):
+        return json_err('No tienes permiso para editar la foto de este perfil.', 403)
 
     try:
         if 'foto' not in request.FILES:
@@ -1206,6 +1316,9 @@ def eliminar_foto_estudiante(request, estudiante_id):
     if request.method != 'POST':
         return json_err('Método no permitido. Usa POST.', 405)
 
+    if not _verificar_propietario(request, estudiante_id, 'estudiante'):
+        return json_err('No tienes permiso para eliminar la foto de este perfil.', 403)
+
     try:
         conn = db_conn()
         cur = conn.cursor()
@@ -1252,6 +1365,9 @@ def eliminar_foto_docente(request, docente_id):
     if request.method != 'POST':
         return json_err('Método no permitido. Usa POST.', 405)
 
+    if not _verificar_propietario(request, docente_id, 'docente'):
+        return json_err('No tienes permiso para eliminar la foto de este perfil.', 403)
+
     try:
         conn = db_conn()
         cur = conn.cursor()
@@ -1297,6 +1413,9 @@ def eliminar_foto_egresado(request, egresado_id):
 
     if request.method != 'POST':
         return json_err('Método no permitido. Usa POST.', 405)
+
+    if not _verificar_propietario(request, egresado_id, 'egresado'):
+        return json_err('No tienes permiso para eliminar la foto de este perfil.', 403)
 
     try:
         conn = db_conn()
@@ -1469,23 +1588,22 @@ def _normalizar_tipo_usuario(tipo):
 
 def _usuario_actual(request):
     """
-    Identifica al usuario logueado a partir de las cabeceras X-User-Id /
-    X-User-Tipo que manda el frontend en requestJSONWithUser() de api.js.
+    Identifica al usuario logueado a partir del JWT en la cabecera
+    Authorization: Bearer <token> (ver apps/users/auth.py).
 
-    Devuelve (usuario_id:int, usuario_tipo:str) o (None, None) si no vienen
-    o son inválidas. Se usa como respaldo en los endpoints de matches que
-    antes solo aceptaban origen_id/origen_tipo por body o query string (y
-    por eso nunca encontraban al usuario, aunque el frontend sí mandaba
-    quién era vía cabeceras).
+    Devuelve (usuario_id:int, usuario_tipo:str) o (None, None) si no hay
+    token, es inválido, expiró o fue manipulado.
+
+    Antes esto leía las cabeceras X-User-Id / X-User-Tipo tal cual las
+    mandaba el cliente, sin ninguna verificación — cualquiera podía
+    suplantar a cualquier usuario con solo poner esas dos cabeceras. Como
+    _usuario_actual()/_verificar_propietario() son el único punto por el
+    que pasa "quién es el usuario logueado" en todo este archivo, este
+    cambio basta para que el resto de endpoints (matches, mensajes,
+    notificaciones, edición/borrado de perfil y fotos, etc.) queden
+    protegidos de verdad sin tocarlos uno por uno.
     """
-    uid = request.headers.get('X-User-Id')
-    utipo = _normalizar_tipo_usuario(request.headers.get('X-User-Tipo'))
-    if not uid or not utipo:
-        return None, None
-    try:
-        return int(uid), utipo
-    except (TypeError, ValueError):
-        return None, None
+    return usuario_desde_request(request)
 
 
 def _verificar_propietario(request, perfil_id, tipo_esperado):

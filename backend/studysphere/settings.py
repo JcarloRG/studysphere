@@ -4,8 +4,10 @@ Configurado para desarrollo local con conexión PostgreSQL, CORS y verificación
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 
 # === Inicialización ===
 load_dotenv()
@@ -13,13 +15,36 @@ load_dotenv()
 # === Directorio base ===
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# === Seguridad (modo dev) ===
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-clave-temporal')
-DEBUG = os.getenv('DEBUG', 'true').lower() == 'true'
+# === Seguridad ===
+# DEBUG por defecto en False: si alguien despliega esto sin poner DEBUG=true
+# explícitamente en su .env, que falle "seguro" (modo producción) en vez de
+# quedar abierto en modo debug (que expone stack traces, variables, SQL, etc.)
+DEBUG = os.getenv('DEBUG', 'false').lower() == 'true'
+
+# La SECRET_KEY firma sesiones, tokens de administrador (django.core.signing)
+# y los JWT de estudiantes/docentes/egresados. Ya NO tiene un valor por
+# defecto "de verdad": si falta en producción (DEBUG=False), el proyecto se
+# niega a arrancar en vez de usar una clave conocida/predecible.
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', '')
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'django-insecure-solo-para-desarrollo-local-NO-USAR-EN-PRODUCCION'
+    else:
+        raise ImproperlyConfigured(
+            'DJANGO_SECRET_KEY no está definida. Genera una con: '
+            'python -c "from django.core.management.utils import get_random_secret_key; '
+            'print(get_random_secret_key())" y agrégala a tu .env. '
+            'No se permite arrancar en producción (DEBUG=False) sin ella.'
+        )
 
 # ALLOWED_HOSTS desde .env (coma-separados) o fallback seguro de dev
 _env_allowed_hosts = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0')
 ALLOWED_HOSTS = [h.strip() for h in _env_allowed_hosts.split(',') if h.strip()]
+if not DEBUG and ALLOWED_HOSTS == ['localhost', '127.0.0.1', '0.0.0.0']:
+    raise ImproperlyConfigured(
+        'ALLOWED_HOSTS no está configurado para producción. Define el/los '
+        'dominio(s) reales en la variable de entorno ALLOWED_HOSTS.'
+    )
 
 # === Aplicaciones instaladas ===
 INSTALLED_APPS = [
@@ -50,6 +75,33 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.BrowsableAPIRenderer',  # quítalo si no lo usas
     ],
 }
+
+# === JWT (rest_framework_simplejwt) ===
+# Usado por apps/users/auth.py para emitir y validar los tokens de sesión
+# de estudiantes/docentes/egresados (sustituye a las cabeceras X-User-Id /
+# X-User-Tipo, que cualquiera podía falsificar).
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=int(os.getenv('JWT_ACCESS_LIFETIME_HOURS', '2'))),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=int(os.getenv('JWT_REFRESH_LIFETIME_DAYS', '7'))),
+    'ROTATE_REFRESH_TOKENS': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+# === Validación de contraseñas (Estudiante/Docente/Egresado/Admin) ===
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 8},
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
 
 # === Middleware ===
 MIDDLEWARE = [
@@ -110,13 +162,21 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")] if os.path.isdir(os.path.j
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # === CORS (para conexión con React) ===
-# Si definiste CORS_ALLOWED_ORIGINS en .env, úsalo; si no, permite todo en dev
+# Si definiste CORS_ALLOWED_ORIGINS en .env, úsalo. Si no lo definiste, solo
+# se permite "todo origen" en DEBUG (desarrollo local); en producción es
+# obligatorio listar los orígenes reales, para no permitir que cualquier
+# sitio web haga peticiones autenticadas contra la API.
 _env_cors = os.getenv('CORS_ALLOWED_ORIGINS', '')
 if _env_cors:
     CORS_ALLOW_ALL_ORIGINS = False
     CORS_ALLOWED_ORIGINS = [o.strip() for o in _env_cors.split(',') if o.strip()]
-else:
+elif DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
+else:
+    raise ImproperlyConfigured(
+        'CORS_ALLOWED_ORIGINS no está configurado para producción. Define '
+        'el/los dominio(s) reales del frontend en esa variable de entorno.'
+    )
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
@@ -138,6 +198,21 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+
+# === Cabeceras de seguridad (ISO/IEC 27001 - protección en tránsito) ===
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_REFERRER_POLICY = 'same-origin'
+
+if not DEBUG:
+    # Solo forzamos HTTPS/cookies "secure" fuera de desarrollo local, donde
+    # normalmente no hay TLS configurado.
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
 # === Email (para verificación de correo) ===
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

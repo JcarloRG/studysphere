@@ -216,8 +216,7 @@ const Perfil = () => {
 
       if (result.success) {
         alert('Perfil eliminado exitosamente');
-        localStorage.removeItem('currentUserId');
-        localStorage.removeItem('currentUserType');
+        apiService.logoutUser();
         navigate('/');
       } else {
         alert('Error al eliminar el perfil');

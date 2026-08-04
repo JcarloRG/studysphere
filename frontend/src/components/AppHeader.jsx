@@ -40,8 +40,7 @@ export default function AppHeader({ title = 'StudySphere', logoSrc = '/logo192.p
   }, [logueado]);
 
   const handleLogout = () => {
-    localStorage.removeItem('currentUserId');
-    localStorage.removeItem('currentUserType');
+    apiService.logoutUser();
     navigate('/');
   };
 
